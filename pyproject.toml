@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "freshbot-butler"
+version = "0.1.0"
+description = ""
+authors = ["Johannes Hackbarth <j.hackbarth@cubegaming.de>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.8.1,<4.0"
+langchain = "^0.0.325"
+flask = "^3.0.0"
+pymongo = "^4.5.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

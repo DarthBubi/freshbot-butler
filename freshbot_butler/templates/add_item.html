@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Item</title>
+</head>
+<body>
+    <h1>Add Item</h1>
+    {% if message %}
+        <p>{{ message }}</p>
+    {% endif %}
+    <form method="POST" action="/add_item">
+        <label for="name">Name:</label>
+        <input type="text" name="name" id="name"><br>
+        <label for="quantity">Quantity:</label>
+        <input type="number" name="quantity" id="quantity"><br>
+        <label for="expiration">Expiration Date:</label>
+        <input type="date" name="expiration" id="expiration"><br>
+        <input type="submit" value="Add Item" style="background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">
+    </form>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pantry Items</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Pantry Items</h1>
+    <section>
+        <h2>Navigation</h2>
+        <ul class="navigation">
+            <li><a href="/add_item">Add Item</a></li>
+            <li><a href="javascript:history.back()">Back</a></li>
+        </ul>
+    </section>
+    {% if warning %}
+        <p style="color: red">{{ warning }}</p>
+    {% endif %}
+    {% if expiring_warning %}
+        <p style="color: orange">{{ expiring_warning }}</p>
+    {% endif %}
+    <ul>
+        {% for item in items %}
+            <li>{{ item.name }} - {{ item.quantity }}
+            {% if item in expired_items %}
+                <span style="color: red"> - EXPIRED!</span>
+            {% elif item in expiring_items %}
+                <span style="color: orange"> - EXPIRING SOON!</span>
+            {% endif %}
+            <form class="delete-form" method="POST" action="{{ url_for('delete_item', item_id=item['_id']) }}">
+                <button type="submit">Delete</button>
+            </form>
+            </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

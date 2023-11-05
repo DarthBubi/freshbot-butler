@@ -6,11 +6,19 @@ authors = ["Johannes Hackbarth <j.hackbarth@cubegaming.de>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.8.1,<4.0"
+python = ">=3.10,<4.0"
 langchain = "^0.0.325"
-flask = "^3.0.0"
+flask = {extras = ["async"], version = "^3.0.0"}
 pymongo = "^4.5.0"
+openai = "^0.28.1"
+chromadb = "^0.4.15"
+motor = "^3.3.1"
+pysqlite3-binary = "^0.5.2.post1"
+tiktoken = "^0.5.1"
 
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.26.0"
 
 [build-system]
 requires = ["poetry-core"]

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Langchain Query</title>
+    <script>
+        window.onload = function() {
+            document.getElementById('queryForm').addEventListener('submit', function(event) {
+                event.preventDefault();
+
+                let query = document.getElementById('query').value;
+
+                fetch('/langchain', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: query }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('response').textContent = data.response;
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+            });
+        }
+    </script>
+</head>
+<body>
+    <h1>Langchain Query</h1>
+    <form id="queryForm">
+        <label for="query">Enter your query:</label><br>
+        <input type="text" id="query" name="query"><br>
+        <input type="submit" value="Submit">
+    </form>
+    <h2>Response:</h2>
+    <div id="response">
+        <!-- This is where the response will be displayed -->
+    </div>
+</body>
+</html>

@@ -37,7 +37,7 @@ def get_expired_items():
             expiring_items.append(item)
     return expired_items, expiring_items
 
-def generate_summary(items):
+def generate_summary(items: list) -> str:
     names = [item['name'] for item in items]
     quantities = [item['quantity'] for item in items]
     total_quantity = sum(quantities)
@@ -81,6 +81,16 @@ def langchain_query():
         return jsonify({'response': response})
     else:
         return render_template('langchain.html')
+    
+@app.route('/langchain/add_item', methods=['GET', 'POST'])
+def langchain_add_item():
+    if request.method == 'POST':
+        data = request.get_json()
+        item = data['item']
+        collection.insert_one(item)
+        return jsonify({'response': 'Item added!'})
+    else:
+        return render_template('langchain_add_item.html')
 
 @app.route('/')
 def index():

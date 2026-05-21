@@ -1,0 +1,9 @@
+.git
+.gitignore
+.venv
+.pytest_cache
+node_modules
+apps/frontend/.next
+coverage
+htmlcov
+tests/.runtime

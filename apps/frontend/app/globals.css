@@ -1,0 +1,109 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, system-ui, sans-serif;
+  background: #f5f1e8;
+  color: #1d271f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f5f1e8 0%, #eef3ee 100%);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+input {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1px solid #b5c0b7;
+  border-radius: 0.85rem;
+  background: white;
+}
+
+button {
+  border: none;
+  border-radius: 999px;
+  background: #294936;
+  color: white;
+  padding: 0.9rem 1.2rem;
+  font-weight: 600;
+}
+
+button:disabled {
+  opacity: 0.7;
+}
+
+.shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.card {
+  width: min(100%, 28rem);
+  padding: 1.5rem;
+  border-radius: 1.5rem;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 24px 48px rgba(41, 73, 54, 0.12);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.gap-xs {
+  gap: 0.35rem;
+}
+
+.gap-sm {
+  gap: 0.5rem;
+}
+
+.gap-md {
+  gap: 1rem;
+}
+
+.eyebrow {
+  margin: 0;
+  color: #4e6656;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+.muted {
+  color: #617465;
+}
+
+.dashboard-panel {
+  border-radius: 1rem;
+  background: #eef3ee;
+  padding: 1rem;
+}
+
+.welcome {
+  font-weight: 600;
+}
+
+.ghost-button {
+  background: transparent;
+  color: #294936;
+  border: 1px solid #294936;
+}

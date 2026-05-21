@@ -1,0 +1,1275 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Freshbot Butler API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "summary": "Healthcheck",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Gethealth"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/household-session": {
+      "post": {
+        "summary": "Create Household Session",
+        "operationId": "createHouseholdSession",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HouseholdSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdSessionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/today": {
+      "get": {
+        "summary": "Get Today",
+        "operationId": "getTodayDashboard",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/freshness-overrides": {
+      "get": {
+        "summary": "List Freshness Overrides",
+        "operationId": "listFreshnessOverrides",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FreshnessPolicyListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/freshness-overrides/{category}": {
+      "put": {
+        "summary": "Save Freshness Override",
+        "operationId": "saveFreshnessOverride",
+        "parameters": [
+          {
+            "name": "category",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Category"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FreshnessOverrideRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FreshnessPolicySummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/text-capture/drafts": {
+      "post": {
+        "summary": "Create Text Capture Drafts",
+        "operationId": "createTextCaptureDrafts",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TextCaptureDraftRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TextCaptureDraftResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/voice-capture/drafts": {
+      "post": {
+        "summary": "Create Voice Capture Drafts",
+        "operationId": "createVoiceCaptureDrafts",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_createVoiceCaptureDrafts"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceCaptureDraftResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/package-photo/drafts": {
+      "post": {
+        "summary": "Create Package Photo Drafts",
+        "operationId": "createPackagePhotoDrafts",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_createPackagePhotoDrafts"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackagePhotoDraftResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/package-photo/drafts/{capture_id}": {
+      "get": {
+        "summary": "Get Package Photo Drafts",
+        "operationId": "getPackagePhotoDrafts",
+        "parameters": [
+          {
+            "name": "capture_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Capture Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackagePhotoDraftResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/text-capture/confirm": {
+      "post": {
+        "summary": "Confirm Text Capture Drafts",
+        "operationId": "confirmTextCaptureDrafts",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TextCaptureConfirmRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TextCaptureConfirmResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/package-photo/confirm": {
+      "post": {
+        "summary": "Confirm Package Photo Drafts",
+        "operationId": "confirmPackagePhotoDrafts",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PackagePhotoConfirmRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TextCaptureConfirmResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BatchSummary": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "quantity": {
+            "type": "string",
+            "title": "Quantity"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "location": {
+            "type": "string",
+            "title": "Location"
+          },
+          "freshness": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FreshnessSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "quantity",
+          "category",
+          "location"
+        ],
+        "title": "BatchSummary"
+      },
+      "Body_createPackagePhotoDrafts": {
+        "properties": {
+          "photo": {
+            "type": "string",
+            "format": "binary",
+            "title": "Photo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "photo"
+        ],
+        "title": "Body_createPackagePhotoDrafts"
+      },
+      "Body_createVoiceCaptureDrafts": {
+        "properties": {
+          "audio_file": {
+            "type": "string",
+            "format": "binary",
+            "title": "Audio File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "audio_file"
+        ],
+        "title": "Body_createVoiceCaptureDrafts"
+      },
+      "FreshnessOverrideRequest": {
+        "properties": {
+          "shelf_life_days": {
+            "type": "integer",
+            "maximum": 365.0,
+            "minimum": 0.0,
+            "title": "Shelf Life Days"
+          },
+          "soon_window_days": {
+            "type": "integer",
+            "maximum": 365.0,
+            "minimum": 0.0,
+            "title": "Soon Window Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "shelf_life_days",
+          "soon_window_days"
+        ],
+        "title": "FreshnessOverrideRequest"
+      },
+      "FreshnessPolicyListResponse": {
+        "properties": {
+          "policies": {
+            "items": {
+              "$ref": "#/components/schemas/FreshnessPolicySummary"
+            },
+            "type": "array",
+            "title": "Policies"
+          }
+        },
+        "type": "object",
+        "required": [
+          "policies"
+        ],
+        "title": "FreshnessPolicyListResponse"
+      },
+      "FreshnessPolicySummary": {
+        "properties": {
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "default_shelf_life_days": {
+            "type": "integer",
+            "title": "Default Shelf Life Days"
+          },
+          "default_soon_window_days": {
+            "type": "integer",
+            "title": "Default Soon Window Days"
+          },
+          "shelf_life_days": {
+            "type": "integer",
+            "title": "Shelf Life Days"
+          },
+          "soon_window_days": {
+            "type": "integer",
+            "title": "Soon Window Days"
+          },
+          "is_override": {
+            "type": "boolean",
+            "title": "Is Override"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "default_shelf_life_days",
+          "default_soon_window_days",
+          "shelf_life_days",
+          "soon_window_days",
+          "is_override"
+        ],
+        "title": "FreshnessPolicySummary"
+      },
+      "FreshnessSummary": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "urgent",
+              "soon",
+              "normal"
+            ],
+            "title": "State"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "exact_date",
+              "category_default",
+              "household_override"
+            ],
+            "title": "Source"
+          },
+          "due_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Due On"
+          },
+          "date_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "best_before",
+                  "use_by"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "source",
+          "due_on"
+        ],
+        "title": "FreshnessSummary"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HouseholdInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "slug"
+        ],
+        "title": "HouseholdInfo"
+      },
+      "HouseholdSessionRequest": {
+        "properties": {
+          "household_name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Household Name"
+          },
+          "member_name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Member Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "household_name",
+          "member_name"
+        ],
+        "title": "HouseholdSessionRequest"
+      },
+      "HouseholdSessionResponse": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "locale": {
+            "type": "string",
+            "title": "Locale"
+          },
+          "household": {
+            "$ref": "#/components/schemas/HouseholdInfo"
+          },
+          "member": {
+            "$ref": "#/components/schemas/MemberInfo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "locale",
+          "household",
+          "member"
+        ],
+        "title": "HouseholdSessionResponse"
+      },
+      "MemberInfo": {
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "display_name"
+        ],
+        "title": "MemberInfo"
+      },
+      "PackagePhotoConfirmRequest": {
+        "properties": {
+          "capture_id": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Capture Id"
+          },
+          "drafts": {
+            "items": {
+              "$ref": "#/components/schemas/PackagePhotoDraft"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Drafts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "capture_id",
+          "drafts"
+        ],
+        "title": "PackagePhotoConfirmRequest"
+      },
+      "PackagePhotoDraft": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "quantity": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Quantity"
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Category"
+          },
+          "location": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Location"
+          },
+          "date_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "best_before",
+                  "use_by"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Type"
+          },
+          "expires_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires On"
+          },
+          "requires_date_review": {
+            "type": "boolean",
+            "title": "Requires Date Review",
+            "default": false
+          },
+          "date_reviewed": {
+            "type": "boolean",
+            "title": "Date Reviewed",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "quantity",
+          "category",
+          "location"
+        ],
+        "title": "PackagePhotoDraft"
+      },
+      "PackagePhotoDraftResponse": {
+        "properties": {
+          "capture_id": {
+            "type": "string",
+            "title": "Capture Id"
+          },
+          "status": {
+            "type": "string",
+            "const": "pending_review",
+            "title": "Status"
+          },
+          "drafts": {
+            "items": {
+              "$ref": "#/components/schemas/PackagePhotoDraft"
+            },
+            "type": "array",
+            "title": "Drafts"
+          },
+          "available_categories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Available Categories"
+          },
+          "available_locations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Available Locations"
+          },
+          "available_date_types": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "best_before",
+                "use_by"
+              ]
+            },
+            "type": "array",
+            "title": "Available Date Types"
+          }
+        },
+        "type": "object",
+        "required": [
+          "capture_id",
+          "status",
+          "drafts",
+          "available_categories",
+          "available_locations",
+          "available_date_types"
+        ],
+        "title": "PackagePhotoDraftResponse"
+      },
+      "TextCaptureConfirmRequest": {
+        "properties": {
+          "drafts": {
+            "items": {
+              "$ref": "#/components/schemas/TextCaptureDraft"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Drafts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "drafts"
+        ],
+        "title": "TextCaptureConfirmRequest"
+      },
+      "TextCaptureConfirmResponse": {
+        "properties": {
+          "batches": {
+            "items": {
+              "$ref": "#/components/schemas/BatchSummary"
+            },
+            "type": "array",
+            "title": "Batches"
+          }
+        },
+        "type": "object",
+        "required": [
+          "batches"
+        ],
+        "title": "TextCaptureConfirmResponse"
+      },
+      "TextCaptureDraft": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "quantity": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Quantity"
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Category"
+          },
+          "location": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Location"
+          },
+          "date_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "best_before",
+                  "use_by"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Type"
+          },
+          "expires_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires On"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "quantity",
+          "category",
+          "location"
+        ],
+        "title": "TextCaptureDraft"
+      },
+      "TextCaptureDraftRequest": {
+        "properties": {
+          "input_text": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Input Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "input_text"
+        ],
+        "title": "TextCaptureDraftRequest"
+      },
+      "TextCaptureDraftResponse": {
+        "properties": {
+          "drafts": {
+            "items": {
+              "$ref": "#/components/schemas/TextCaptureDraft"
+            },
+            "type": "array",
+            "title": "Drafts"
+          },
+          "available_categories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Available Categories"
+          },
+          "available_locations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Available Locations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "drafts",
+          "available_categories",
+          "available_locations"
+        ],
+        "title": "TextCaptureDraftResponse"
+      },
+      "TodayResponse": {
+        "properties": {
+          "household_name": {
+            "type": "string",
+            "title": "Household Name"
+          },
+          "member_name": {
+            "type": "string",
+            "title": "Member Name"
+          },
+          "locale": {
+            "type": "string",
+            "title": "Locale"
+          },
+          "sections": {
+            "$ref": "#/components/schemas/TodaySections"
+          }
+        },
+        "type": "object",
+        "required": [
+          "household_name",
+          "member_name",
+          "locale",
+          "sections"
+        ],
+        "title": "TodayResponse"
+      },
+      "TodaySections": {
+        "properties": {
+          "needs_attention": {
+            "items": {
+              "$ref": "#/components/schemas/BatchSummary"
+            },
+            "type": "array",
+            "title": "Needs Attention"
+          },
+          "upcoming": {
+            "items": {
+              "$ref": "#/components/schemas/BatchSummary"
+            },
+            "type": "array",
+            "title": "Upcoming"
+          },
+          "shopping_suggestions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Shopping Suggestions"
+          },
+          "inventory": {
+            "items": {
+              "$ref": "#/components/schemas/BatchSummary"
+            },
+            "type": "array",
+            "title": "Inventory"
+          }
+        },
+        "type": "object",
+        "title": "TodaySections"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VoiceCaptureDraftResponse": {
+        "properties": {
+          "drafts": {
+            "items": {
+              "$ref": "#/components/schemas/TextCaptureDraft"
+            },
+            "type": "array",
+            "title": "Drafts"
+          },
+          "available_categories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Available Categories"
+          },
+          "available_locations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Available Locations"
+          },
+          "transcript": {
+            "type": "string",
+            "title": "Transcript"
+          }
+        },
+        "type": "object",
+        "required": [
+          "drafts",
+          "available_categories",
+          "available_locations",
+          "transcript"
+        ],
+        "title": "VoiceCaptureDraftResponse"
+      }
+    }
+  }
+}

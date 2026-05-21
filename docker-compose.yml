@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-freshbot}
+      POSTGRES_USER: ${POSTGRES_USER:-freshbot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-freshbot}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-freshbot} -d ${POSTGRES_DB:-freshbot}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    environment:
+      FRESHBOT_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-freshbot}:${POSTGRES_PASSWORD:-freshbot}@postgres:5432/${POSTGRES_DB:-freshbot}
+      FRESHBOT_HOST: 0.0.0.0
+      FRESHBOT_PORT: 8000
+      FRESHBOT_TRANSCRIPTION_PROVIDER: ${FRESHBOT_TRANSCRIPTION_PROVIDER:-openai}
+      FRESHBOT_TRANSCRIPTION_OPENAI_API_KEY: ${FRESHBOT_TRANSCRIPTION_OPENAI_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    environment:
+      FRESHBOT_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-freshbot}:${POSTGRES_PASSWORD:-freshbot}@postgres:5432/${POSTGRES_DB:-freshbot}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["sh", "-c", "while true; do uv run freshbot-worker --once; sleep ${WORKER_POLL_INTERVAL:-5}; done"]
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    environment:
+      API_BASE_URL: http://backend:8000
+      PORT: 3000
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+
+volumes:
+  postgres-data:

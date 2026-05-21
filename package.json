@@ -1,0 +1,13 @@
+{
+  "name": "freshbot-butler-monorepo",
+  "private": true,
+  "workspaces": [
+    "apps/frontend",
+    "packages/api-client"
+  ],
+  "scripts": {
+    "generate:api-client": "uv run python -m freshbot_butler.api.export_openapi packages/api-client/openapi.json && npm --workspace @freshbot-butler/api-client run generate",
+    "test:frontend": "npm --workspace @freshbot-butler/frontend run test",
+    "build:frontend": "npm --workspace @freshbot-butler/frontend run build"
+  }
+}

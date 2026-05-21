@@ -1,0 +1,1 @@
+"""Freshbot Butler worker package."""

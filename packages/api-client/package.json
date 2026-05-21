@@ -1,0 +1,16 @@
+{
+  "name": "@freshbot-butler/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "openapi --input openapi.json --output src/generated --client fetch"
+  },
+  "devDependencies": {
+    "openapi-typescript-codegen": "^0.29.0",
+    "typescript": "^5.7.2"
+  }
+}

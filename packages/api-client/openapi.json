@@ -111,6 +111,587 @@
         }
       }
     },
+    "/api/shopping-lists": {
+      "get": {
+        "summary": "List Shopping Lists",
+        "operationId": "listShoppingLists",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShoppingListsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Shopping List",
+        "operationId": "createShoppingList",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShoppingListRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShoppingListsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/shopping-lists/{list_id}": {
+      "put": {
+        "summary": "Rename Shopping List",
+        "operationId": "renameShoppingList",
+        "parameters": [
+          {
+            "name": "list_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "List Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShoppingListRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShoppingListsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/shopping-lists/{list_id}/items": {
+      "post": {
+        "summary": "Upsert Shopping List Item",
+        "operationId": "upsertShoppingListItem",
+        "parameters": [
+          {
+            "name": "list_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "List Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShoppingListItemRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShoppingListsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/shopping-lists/{list_id}/items/{item_id}": {
+      "delete": {
+        "summary": "Remove Shopping List Item",
+        "operationId": "removeShoppingListItem",
+        "parameters": [
+          {
+            "name": "list_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "List Id"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShoppingListsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/shopping-suggestions/{suggestion_id}/accept": {
+      "post": {
+        "summary": "Accept Shopping Suggestion",
+        "operationId": "acceptShoppingSuggestion",
+        "parameters": [
+          {
+            "name": "suggestion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Suggestion Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShoppingSuggestionAcceptRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShoppingListsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/kitchen-assistant/query": {
+      "post": {
+        "summary": "Query Kitchen Assistant",
+        "operationId": "queryKitchenAssistant",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KitchenAssistantQueryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitchenAssistantQueryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/batches": {
+      "get": {
+        "summary": "List Batches",
+        "operationId": "listBatches",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchLifecycleListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/batches/{batch_id}/actions": {
+      "post": {
+        "summary": "Act On Batch",
+        "operationId": "actOnBatch",
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Batch Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchLifecycleActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchLifecycleSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/batches/{batch_id}/events": {
+      "get": {
+        "summary": "List Batch Events",
+        "operationId": "listBatchEvents",
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Batch Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchLifecycleEventListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/freshness-overrides": {
       "get": {
         "summary": "List Freshness Overrides",
@@ -205,6 +786,154 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FreshnessPolicySummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reminders": {
+      "get": {
+        "summary": "Get Reminders",
+        "operationId": "getReminders",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReminderPreviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reminder-settings": {
+      "put": {
+        "summary": "Update Reminder Settings",
+        "operationId": "updateReminderSettings",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReminderSettingsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReminderSettingsSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reminders/dispatch": {
+      "post": {
+        "summary": "Dispatch Reminders",
+        "operationId": "dispatchReminders",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReminderPreviewResponse"
                 }
               }
             }
@@ -560,6 +1289,213 @@
   },
   "components": {
     "schemas": {
+      "BatchLifecycleActionRequest": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "open",
+              "decrement",
+              "use_up",
+              "discard"
+            ],
+            "title": "Action"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "BatchLifecycleActionRequest"
+      },
+      "BatchLifecycleEventListResponse": {
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/BatchLifecycleEventSummary"
+            },
+            "type": "array",
+            "title": "Events"
+          }
+        },
+        "type": "object",
+        "required": [
+          "events"
+        ],
+        "title": "BatchLifecycleEventListResponse"
+      },
+      "BatchLifecycleEventSummary": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "opened",
+              "decremented",
+              "used_up",
+              "discarded"
+            ],
+            "title": "Action"
+          },
+          "quantity_before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity Before"
+          },
+          "quantity_after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity After"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "member_name": {
+            "type": "string",
+            "title": "Member Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "created_at",
+          "member_name"
+        ],
+        "title": "BatchLifecycleEventSummary"
+      },
+      "BatchLifecycleListResponse": {
+        "properties": {
+          "batches": {
+            "items": {
+              "$ref": "#/components/schemas/BatchLifecycleSummary"
+            },
+            "type": "array",
+            "title": "Batches"
+          },
+          "merge_suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/BatchMergeSuggestion"
+            },
+            "type": "array",
+            "title": "Merge Suggestions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "batches"
+        ],
+        "title": "BatchLifecycleListResponse"
+      },
+      "BatchLifecycleSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "quantity": {
+            "type": "string",
+            "title": "Quantity"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "location": {
+            "type": "string",
+            "title": "Location"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "sealed",
+              "opened",
+              "depleted",
+              "discarded"
+            ],
+            "title": "State"
+          },
+          "freshness": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FreshnessSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/BatchLifecycleEventSummary"
+            },
+            "type": "array",
+            "title": "Events"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "quantity",
+          "category",
+          "location",
+          "state"
+        ],
+        "title": "BatchLifecycleSummary"
+      },
+      "BatchMergeSuggestion": {
+        "properties": {
+          "batch_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Batch Ids"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "location": {
+            "type": "string",
+            "title": "Location"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "batch_ids",
+          "name",
+          "category",
+          "location",
+          "count"
+        ],
+        "title": "BatchMergeSuggestion"
+      },
       "BatchSummary": {
         "properties": {
           "name": {
@@ -830,6 +1766,56 @@
         ],
         "title": "HouseholdSessionResponse"
       },
+      "KitchenAssistantQueryRequest": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Question"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "title": "KitchenAssistantQueryRequest"
+      },
+      "KitchenAssistantQueryResponse": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "topic": {
+            "type": "string",
+            "enum": [
+              "inventory_presence",
+              "freshness_status",
+              "soon_items",
+              "shopping_availability",
+              "fallback"
+            ],
+            "title": "Topic"
+          },
+          "needs_clarification": {
+            "type": "boolean",
+            "title": "Needs Clarification"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question",
+          "answer",
+          "topic",
+          "needs_clarification"
+        ],
+        "title": "KitchenAssistantQueryResponse"
+      },
       "MemberInfo": {
         "properties": {
           "display_name": {
@@ -948,7 +1934,12 @@
           },
           "status": {
             "type": "string",
-            "const": "pending_review",
+            "enum": [
+              "processing",
+              "pending_review",
+              "confirmed",
+              "failed"
+            ],
             "title": "Status"
           },
           "drafts": {
@@ -994,6 +1985,435 @@
           "available_date_types"
         ],
         "title": "PackagePhotoDraftResponse"
+      },
+      "ReminderDeliveryPlanSummary": {
+        "properties": {
+          "daily_digest_delivery": {
+            "type": "string",
+            "enum": [
+              "in_app",
+              "quiet"
+            ],
+            "title": "Daily Digest Delivery"
+          },
+          "urgent_push_delivery": {
+            "type": "string",
+            "enum": [
+              "web_push",
+              "quiet"
+            ],
+            "title": "Urgent Push Delivery"
+          },
+          "urgent_push_candidates": {
+            "items": {
+              "$ref": "#/components/schemas/ReminderDigestItemSummary"
+            },
+            "type": "array",
+            "title": "Urgent Push Candidates"
+          }
+        },
+        "type": "object",
+        "required": [
+          "daily_digest_delivery",
+          "urgent_push_delivery"
+        ],
+        "title": "ReminderDeliveryPlanSummary"
+      },
+      "ReminderDeliverySummary": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "daily_digest",
+              "urgent_push"
+            ],
+            "title": "Kind"
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "in_app",
+              "web_push"
+            ],
+            "title": "Channel"
+          },
+          "payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "items": {},
+                "type": "array"
+              }
+            ],
+            "title": "Payload"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "delivered_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Delivered At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "channel",
+          "payload",
+          "created_at",
+          "delivered_at"
+        ],
+        "title": "ReminderDeliverySummary"
+      },
+      "ReminderDigestItemSummary": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "quantity": {
+            "type": "string",
+            "title": "Quantity"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "location": {
+            "type": "string",
+            "title": "Location"
+          },
+          "freshness": {
+            "$ref": "#/components/schemas/FreshnessSummary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "quantity",
+          "category",
+          "location",
+          "freshness"
+        ],
+        "title": "ReminderDigestItemSummary"
+      },
+      "ReminderDigestSummary": {
+        "properties": {
+          "generated_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Generated On"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "urgent_items": {
+            "items": {
+              "$ref": "#/components/schemas/ReminderDigestItemSummary"
+            },
+            "type": "array",
+            "title": "Urgent Items"
+          },
+          "soon_items": {
+            "items": {
+              "$ref": "#/components/schemas/ReminderDigestItemSummary"
+            },
+            "type": "array",
+            "title": "Soon Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "generated_on",
+          "summary"
+        ],
+        "title": "ReminderDigestSummary"
+      },
+      "ReminderPreviewResponse": {
+        "properties": {
+          "household_name": {
+            "type": "string",
+            "title": "Household Name"
+          },
+          "member_name": {
+            "type": "string",
+            "title": "Member Name"
+          },
+          "locale": {
+            "type": "string",
+            "title": "Locale"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/ReminderSettingsSummary"
+          },
+          "digest": {
+            "$ref": "#/components/schemas/ReminderDigestSummary"
+          },
+          "delivery": {
+            "$ref": "#/components/schemas/ReminderDeliveryPlanSummary"
+          },
+          "freshness_policies": {
+            "items": {
+              "$ref": "#/components/schemas/FreshnessPolicySummary"
+            },
+            "type": "array",
+            "title": "Freshness Policies"
+          },
+          "deliveries": {
+            "items": {
+              "$ref": "#/components/schemas/ReminderDeliverySummary"
+            },
+            "type": "array",
+            "title": "Deliveries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "household_name",
+          "member_name",
+          "locale",
+          "settings",
+          "digest",
+          "delivery",
+          "freshness_policies"
+        ],
+        "title": "ReminderPreviewResponse"
+      },
+      "ReminderSettingsRequest": {
+        "properties": {
+          "daily_digest_enabled": {
+            "type": "boolean",
+            "title": "Daily Digest Enabled"
+          },
+          "urgent_push_enabled": {
+            "type": "boolean",
+            "title": "Urgent Push Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "daily_digest_enabled",
+          "urgent_push_enabled"
+        ],
+        "title": "ReminderSettingsRequest"
+      },
+      "ReminderSettingsSummary": {
+        "properties": {
+          "daily_digest_enabled": {
+            "type": "boolean",
+            "title": "Daily Digest Enabled"
+          },
+          "urgent_push_enabled": {
+            "type": "boolean",
+            "title": "Urgent Push Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "daily_digest_enabled",
+          "urgent_push_enabled"
+        ],
+        "title": "ReminderSettingsSummary"
+      },
+      "ShoppingListItemRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "quantity": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Quantity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "quantity"
+        ],
+        "title": "ShoppingListItemRequest"
+      },
+      "ShoppingListItemSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "product_key": {
+            "type": "string",
+            "title": "Product Key"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "quantity": {
+            "type": "string",
+            "title": "Quantity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "product_key",
+          "name",
+          "quantity"
+        ],
+        "title": "ShoppingListItemSummary"
+      },
+      "ShoppingListRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ShoppingListRequest"
+      },
+      "ShoppingListSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ShoppingListItemSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ShoppingListSummary"
+      },
+      "ShoppingListsResponse": {
+        "properties": {
+          "lists": {
+            "items": {
+              "$ref": "#/components/schemas/ShoppingListSummary"
+            },
+            "type": "array",
+            "title": "Lists"
+          },
+          "replenishment_suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/ShoppingReplenishmentSuggestionSummary"
+            },
+            "type": "array",
+            "title": "Replenishment Suggestions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lists"
+        ],
+        "title": "ShoppingListsResponse"
+      },
+      "ShoppingReplenishmentSuggestionSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "product_key": {
+            "type": "string",
+            "title": "Product Key"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "quantity": {
+            "type": "string",
+            "title": "Quantity"
+          },
+          "source_action": {
+            "type": "string",
+            "enum": [
+              "used_up",
+              "discarded"
+            ],
+            "title": "Source Action"
+          },
+          "source_batch_name": {
+            "type": "string",
+            "title": "Source Batch Name"
+          },
+          "accepted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted At"
+          },
+          "accepted_list_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted List Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "product_key",
+          "name",
+          "quantity",
+          "source_action",
+          "source_batch_name"
+        ],
+        "title": "ShoppingReplenishmentSuggestionSummary"
+      },
+      "ShoppingSuggestionAcceptRequest": {
+        "properties": {
+          "list_id": {
+            "type": "string",
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "List Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "list_id"
+        ],
+        "title": "ShoppingSuggestionAcceptRequest"
       },
       "TextCaptureConfirmRequest": {
         "properties": {
@@ -1183,8 +2603,7 @@
           },
           "shopping_suggestions": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/ShoppingReplenishmentSuggestionSummary"
             },
             "type": "array",
             "title": "Shopping Suggestions"

@@ -14,6 +14,7 @@ from freshbot_butler.api.schemas import (
     TextCaptureDraftRequest,
     TextCaptureDraftResponse,
 )
+from freshbot_butler.api.services.batch_quantities import parse_quantity
 
 AVAILABLE_CATEGORIES = [
     "Molkerei",
@@ -33,6 +34,7 @@ LOCATION_PATTERNS = {
     "Gefrierschrank": re.compile(r"\b(?:im|in den|in der|in)\s+gefrierschrank$", re.IGNORECASE),
     "Vorratsschrank": re.compile(r"\b(?:im|in den|in der|in)\s+vorratsschrank$", re.IGNORECASE),
 }
+CUSTOM_LOCATION_PATTERN = re.compile(r"\b(?:im|in den|in der|in)\s+(?P<location>.+)$", re.IGNORECASE)
 CATEGORY_KEYWORDS = {
     "Molkerei": {"milch", "joghurt", "käse", "butter", "quark"},
     "Obst & Gemüse": {"apfel", "äpfel", "banane", "bananen", "tomate", "tomaten", "gurke"},
@@ -63,19 +65,22 @@ class TextCaptureService:
     ) -> TextCaptureConfirmResponse:
         household = await self._load_household_for_token(token)
         batches = [
-            Batch(
-                household_id=household.id,
-                name=draft.name.strip(),
-                quantity=draft.quantity.strip(),
-                category=validated_category(draft.category),
-                location=validated_location(draft.location),
-                date_type=draft.date_type,
-                expires_on=draft.expires_on,
+            self._build_batch(
+                household.id,
+                draft.name.strip(),
+                draft.quantity.strip(),
+                validated_category(draft.category),
+                normalize_whitespace(draft.location),
+                draft.date_type,
+                draft.expires_on,
             )
             for draft in request.drafts
         ]
         self._session.add_all(batches)
         await self._session.commit()
+        from freshbot_butler.api.services.reminders import ReminderService
+
+        await ReminderService(self._session).enqueue_pending_jobs()
         return TextCaptureConfirmResponse(
             batches=[
                 BatchSummary(
@@ -86,6 +91,29 @@ class TextCaptureService:
                 )
                 for batch in batches
             ]
+        )
+
+    def _build_batch(
+        self,
+        household_id: str,
+        name: str,
+        quantity: str,
+        category: str,
+        location: str,
+        date_type: str | None,
+        expires_on,
+    ) -> Batch:
+        quantity_amount, quantity_unit = parse_quantity(quantity)
+        return Batch(
+            household_id=household_id,
+            name=name,
+            quantity=quantity,
+            quantity_amount=quantity_amount,
+            quantity_unit=quantity_unit,
+            category=category,
+            location=location,
+            date_type=date_type,
+            expires_on=expires_on,
         )
 
     async def _load_household_for_token(self, token: str) -> Household:
@@ -131,6 +159,10 @@ def extract_location(segment: str) -> tuple[str, str]:
     for location, pattern in LOCATION_PATTERNS.items():
         if pattern.search(segment):
             return location, normalize_whitespace(pattern.sub("", segment))
+    match = CUSTOM_LOCATION_PATTERN.search(segment)
+    if match is not None:
+        location = normalize_whitespace(match.group("location").rstrip(".,;"))
+        return location, normalize_whitespace(segment[: match.start()])
     return "Vorratsschrank", segment
 
 
@@ -164,13 +196,6 @@ def validated_category(value: str) -> str:
     normalized = normalize_whitespace(value)
     if normalized not in AVAILABLE_CATEGORIES:
         return "Sonstiges"
-    return normalized
-
-
-def validated_location(value: str) -> str:
-    normalized = normalize_whitespace(value)
-    if normalized not in AVAILABLE_LOCATIONS:
-        return "Vorratsschrank"
     return normalized
 
 

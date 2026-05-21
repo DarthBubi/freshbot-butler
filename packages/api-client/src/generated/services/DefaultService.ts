@@ -2,6 +2,10 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { BatchLifecycleActionRequest } from '../models/BatchLifecycleActionRequest';
+import type { BatchLifecycleEventListResponse } from '../models/BatchLifecycleEventListResponse';
+import type { BatchLifecycleListResponse } from '../models/BatchLifecycleListResponse';
+import type { BatchLifecycleSummary } from '../models/BatchLifecycleSummary';
 import type { Body_createPackagePhotoDrafts } from '../models/Body_createPackagePhotoDrafts';
 import type { Body_createVoiceCaptureDrafts } from '../models/Body_createVoiceCaptureDrafts';
 import type { FreshnessOverrideRequest } from '../models/FreshnessOverrideRequest';
@@ -9,8 +13,17 @@ import type { FreshnessPolicyListResponse } from '../models/FreshnessPolicyListR
 import type { FreshnessPolicySummary } from '../models/FreshnessPolicySummary';
 import type { HouseholdSessionRequest } from '../models/HouseholdSessionRequest';
 import type { HouseholdSessionResponse } from '../models/HouseholdSessionResponse';
+import type { KitchenAssistantQueryRequest } from '../models/KitchenAssistantQueryRequest';
+import type { KitchenAssistantQueryResponse } from '../models/KitchenAssistantQueryResponse';
 import type { PackagePhotoConfirmRequest } from '../models/PackagePhotoConfirmRequest';
 import type { PackagePhotoDraftResponse } from '../models/PackagePhotoDraftResponse';
+import type { ReminderPreviewResponse } from '../models/ReminderPreviewResponse';
+import type { ReminderSettingsRequest } from '../models/ReminderSettingsRequest';
+import type { ReminderSettingsSummary } from '../models/ReminderSettingsSummary';
+import type { ShoppingListItemRequest } from '../models/ShoppingListItemRequest';
+import type { ShoppingListRequest } from '../models/ShoppingListRequest';
+import type { ShoppingListsResponse } from '../models/ShoppingListsResponse';
+import type { ShoppingSuggestionAcceptRequest } from '../models/ShoppingSuggestionAcceptRequest';
 import type { TextCaptureConfirmRequest } from '../models/TextCaptureConfirmRequest';
 import type { TextCaptureConfirmResponse } from '../models/TextCaptureConfirmResponse';
 import type { TextCaptureDraftRequest } from '../models/TextCaptureDraftRequest';
@@ -72,6 +85,263 @@ export class DefaultService {
         });
     }
     /**
+     * List Shopping Lists
+     * @param authorization
+     * @returns ShoppingListsResponse Successful Response
+     * @throws ApiError
+     */
+    public static listShoppingLists(
+        authorization?: (string | null),
+    ): CancelablePromise<ShoppingListsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/shopping-lists',
+            headers: {
+                'authorization': authorization,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Create Shopping List
+     * @param requestBody
+     * @param authorization
+     * @returns ShoppingListsResponse Successful Response
+     * @throws ApiError
+     */
+    public static createShoppingList(
+        requestBody: ShoppingListRequest,
+        authorization?: (string | null),
+    ): CancelablePromise<ShoppingListsResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/shopping-lists',
+            headers: {
+                'authorization': authorization,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Rename Shopping List
+     * @param listId
+     * @param requestBody
+     * @param authorization
+     * @returns ShoppingListsResponse Successful Response
+     * @throws ApiError
+     */
+    public static renameShoppingList(
+        listId: string,
+        requestBody: ShoppingListRequest,
+        authorization?: (string | null),
+    ): CancelablePromise<ShoppingListsResponse> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/api/shopping-lists/{list_id}',
+            path: {
+                'list_id': listId,
+            },
+            headers: {
+                'authorization': authorization,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Upsert Shopping List Item
+     * @param listId
+     * @param requestBody
+     * @param authorization
+     * @returns ShoppingListsResponse Successful Response
+     * @throws ApiError
+     */
+    public static upsertShoppingListItem(
+        listId: string,
+        requestBody: ShoppingListItemRequest,
+        authorization?: (string | null),
+    ): CancelablePromise<ShoppingListsResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/shopping-lists/{list_id}/items',
+            path: {
+                'list_id': listId,
+            },
+            headers: {
+                'authorization': authorization,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Remove Shopping List Item
+     * @param listId
+     * @param itemId
+     * @param authorization
+     * @returns ShoppingListsResponse Successful Response
+     * @throws ApiError
+     */
+    public static removeShoppingListItem(
+        listId: string,
+        itemId: string,
+        authorization?: (string | null),
+    ): CancelablePromise<ShoppingListsResponse> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/api/shopping-lists/{list_id}/items/{item_id}',
+            path: {
+                'list_id': listId,
+                'item_id': itemId,
+            },
+            headers: {
+                'authorization': authorization,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Accept Shopping Suggestion
+     * @param suggestionId
+     * @param requestBody
+     * @param authorization
+     * @returns ShoppingListsResponse Successful Response
+     * @throws ApiError
+     */
+    public static acceptShoppingSuggestion(
+        suggestionId: string,
+        requestBody: ShoppingSuggestionAcceptRequest,
+        authorization?: (string | null),
+    ): CancelablePromise<ShoppingListsResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/shopping-suggestions/{suggestion_id}/accept',
+            path: {
+                'suggestion_id': suggestionId,
+            },
+            headers: {
+                'authorization': authorization,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Query Kitchen Assistant
+     * @param requestBody
+     * @param authorization
+     * @returns KitchenAssistantQueryResponse Successful Response
+     * @throws ApiError
+     */
+    public static queryKitchenAssistant(
+        requestBody: KitchenAssistantQueryRequest,
+        authorization?: (string | null),
+    ): CancelablePromise<KitchenAssistantQueryResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/kitchen-assistant/query',
+            headers: {
+                'authorization': authorization,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * List Batches
+     * @param authorization
+     * @returns BatchLifecycleListResponse Successful Response
+     * @throws ApiError
+     */
+    public static listBatches(
+        authorization?: (string | null),
+    ): CancelablePromise<BatchLifecycleListResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/batches',
+            headers: {
+                'authorization': authorization,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Act On Batch
+     * @param batchId
+     * @param requestBody
+     * @param authorization
+     * @returns BatchLifecycleSummary Successful Response
+     * @throws ApiError
+     */
+    public static actOnBatch(
+        batchId: string,
+        requestBody: BatchLifecycleActionRequest,
+        authorization?: (string | null),
+    ): CancelablePromise<BatchLifecycleSummary> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/batches/{batch_id}/actions',
+            path: {
+                'batch_id': batchId,
+            },
+            headers: {
+                'authorization': authorization,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * List Batch Events
+     * @param batchId
+     * @param authorization
+     * @returns BatchLifecycleEventListResponse Successful Response
+     * @throws ApiError
+     */
+    public static listBatchEvents(
+        batchId: string,
+        authorization?: (string | null),
+    ): CancelablePromise<BatchLifecycleEventListResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/batches/{batch_id}/events',
+            path: {
+                'batch_id': batchId,
+            },
+            headers: {
+                'authorization': authorization,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
      * List Freshness Overrides
      * @param authorization
      * @returns FreshnessPolicyListResponse Successful Response
@@ -115,6 +385,70 @@ export class DefaultService {
             },
             body: requestBody,
             mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Get Reminders
+     * @param authorization
+     * @returns ReminderPreviewResponse Successful Response
+     * @throws ApiError
+     */
+    public static getReminders(
+        authorization?: (string | null),
+    ): CancelablePromise<ReminderPreviewResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/reminders',
+            headers: {
+                'authorization': authorization,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Update Reminder Settings
+     * @param requestBody
+     * @param authorization
+     * @returns ReminderSettingsSummary Successful Response
+     * @throws ApiError
+     */
+    public static updateReminderSettings(
+        requestBody: ReminderSettingsRequest,
+        authorization?: (string | null),
+    ): CancelablePromise<ReminderSettingsSummary> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/api/reminder-settings',
+            headers: {
+                'authorization': authorization,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Dispatch Reminders
+     * @param authorization
+     * @returns ReminderPreviewResponse Successful Response
+     * @throws ApiError
+     */
+    public static dispatchReminders(
+        authorization?: (string | null),
+    ): CancelablePromise<ReminderPreviewResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/reminders/dispatch',
+            headers: {
+                'authorization': authorization,
+            },
             errors: {
                 422: `Validation Error`,
             },

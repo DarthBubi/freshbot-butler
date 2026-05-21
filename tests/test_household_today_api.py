@@ -69,6 +69,19 @@ def authenticate(client: TestClient) -> str:
     return auth_response.json()["token"]
 
 
+def update_batch_created_at(database_path: Path, batch_id: str, created_at: str) -> None:
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            """
+            UPDATE batches
+            SET created_at = ?
+            WHERE id = ?
+            """,
+            (created_at, batch_id),
+        )
+        connection.commit()
+
+
 def create_legacy_schema(database_path: Path) -> None:
     with sqlite3.connect(database_path) as connection:
         connection.executescript(
@@ -335,6 +348,189 @@ def test_today_dashboard_computes_freshness_states_from_dates_date_types_and_cat
     }
 
 
+def test_today_dashboard_omits_depleted_and_discarded_batches_from_inventory_and_attention() -> None:
+    settings, _ = create_test_settings("today-active-only.sqlite3")
+    today_date = utc_now().date()
+
+    with TestClient(create_app(settings)) as client:
+        token = authenticate(client)
+        confirm_response = client.post(
+            "/api/text-capture/confirm",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "drafts": [
+                    {
+                        "name": "Pasta",
+                        "quantity": "1 Packung",
+                        "category": "Vorrat",
+                        "location": "Vorratsschrank",
+                    },
+                    {
+                        "name": "Hackfleisch",
+                        "quantity": "500 g",
+                        "category": "Molkerei",
+                        "location": "Kühlschrank",
+                        "date_type": "use_by",
+                        "expires_on": today_date.isoformat(),
+                    },
+                    {
+                        "name": "Joghurt",
+                        "quantity": "2 Becher",
+                        "category": "Molkerei",
+                        "location": "Kühlschrank",
+                        "date_type": "best_before",
+                        "expires_on": today_date.isoformat(),
+                    },
+                ]
+            },
+        )
+        assert confirm_response.status_code == 200
+
+        batches_response = client.get(
+            "/api/batches",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        batches = batches_response.json()["batches"]
+        depleted_batch_id = next(batch["id"] for batch in batches if batch["name"] == "Hackfleisch")
+        discarded_batch_id = next(batch["id"] for batch in batches if batch["name"] == "Joghurt")
+
+        depleted_response = client.post(
+            f"/api/batches/{depleted_batch_id}/actions",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"action": "use_up"},
+        )
+        repeated_depleted_response = client.post(
+            f"/api/batches/{depleted_batch_id}/actions",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"action": "use_up"},
+        )
+        discarded_response = client.post(
+            f"/api/batches/{discarded_batch_id}/actions",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"action": "discard"},
+        )
+        repeated_discarded_response = client.post(
+            f"/api/batches/{discarded_batch_id}/actions",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"action": "discard"},
+        )
+        today_response = client.get(
+            "/api/today",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert depleted_response.status_code == 200
+    assert depleted_response.json()["state"] == "depleted"
+    assert repeated_depleted_response.status_code == 422
+    assert repeated_depleted_response.json() == {"detail": "Batch action not allowed"}
+    assert discarded_response.status_code == 200
+    assert discarded_response.json()["state"] == "discarded"
+    assert repeated_discarded_response.status_code == 422
+    assert repeated_discarded_response.json() == {"detail": "Batch action not allowed"}
+    assert today_response.status_code == 200
+    assert today_response.json()["sections"] == {
+        "inventory": [
+            {
+                "name": "Pasta",
+                "quantity": "1 Packung",
+                "category": "Vorrat",
+                "location": "Vorratsschrank",
+                "freshness": {
+                    "state": "normal",
+                    "source": "category_default",
+                    "date_type": None,
+                    "due_on": (today_date + timedelta(days=30)).isoformat(),
+                },
+            }
+        ],
+        "needs_attention": [],
+        "upcoming": [],
+        "shopping_suggestions": [
+            {
+                "id": today_response.json()["sections"]["shopping_suggestions"][0]["id"],
+                "product_key": "hackfleisch",
+                "name": "Hackfleisch",
+                "quantity": "500 g",
+                "source_action": "used_up",
+                "source_batch_name": "Hackfleisch",
+                "accepted_at": None,
+                "accepted_list_id": None,
+            },
+            {
+                "id": today_response.json()["sections"]["shopping_suggestions"][1]["id"],
+                "product_key": "joghurt",
+                "name": "Joghurt",
+                "quantity": "2 Becher",
+                "source_action": "discarded",
+                "source_batch_name": "Joghurt",
+                "accepted_at": None,
+                "accepted_list_id": None,
+            },
+        ],
+    }
+
+
+def test_opened_batches_use_opened_at_for_category_freshness() -> None:
+    settings, database_path = create_test_settings("today-opened-freshness.sqlite3")
+    today_date = utc_now().date()
+    stale_created_at = (utc_now() - timedelta(days=31)).isoformat()
+
+    with TestClient(create_app(settings)) as client:
+        token = authenticate(client)
+        confirm_response = client.post(
+            "/api/text-capture/confirm",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "drafts": [
+                    {
+                        "name": "Pasta",
+                        "quantity": "1 Packung",
+                        "category": "Vorrat",
+                        "location": "Vorratsschrank",
+                    }
+                ]
+            },
+        )
+        assert confirm_response.status_code == 200
+
+        batches_response = client.get(
+            "/api/batches",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        batch_id = batches_response.json()["batches"][0]["id"]
+        update_batch_created_at(database_path, batch_id, stale_created_at)
+
+        open_response = client.post(
+            f"/api/batches/{batch_id}/actions",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"action": "open"},
+        )
+        today_response = client.get(
+            "/api/today",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert open_response.status_code == 200
+    assert open_response.json()["state"] == "opened"
+    assert today_response.status_code == 200
+    assert today_response.json()["sections"]["inventory"] == [
+        {
+            "name": "Pasta",
+            "quantity": "1 Packung",
+            "category": "Vorrat",
+            "location": "Vorratsschrank",
+            "freshness": {
+                "state": "normal",
+                "source": "category_default",
+                "date_type": None,
+                "due_on": (today_date + timedelta(days=30)).isoformat(),
+            },
+        }
+    ]
+    assert today_response.json()["sections"]["needs_attention"] == []
+    assert today_response.json()["sections"]["upcoming"] == []
+
+
 def test_household_can_manage_category_freshness_overrides_for_today_dashboard() -> None:
     settings, _ = create_test_settings("today-freshness-overrides.sqlite3")
     today_date = utc_now().date()
@@ -522,3 +718,73 @@ def test_worker_processes_join_jobs_once() -> None:
     assert response.status_code == 200
     assert asyncio.run(process_pending_jobs_once(settings)) == 1
     assert asyncio.run(process_pending_jobs_once(settings)) == 0
+
+
+class FakePackagePhotoExtractor:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def extract(self, *, filename: str, content_type: str, content: bytes) -> list[dict]:
+        self.calls += 1
+        return [
+            {
+                "name": "Bio-Milch",
+                "quantity": "1 Flasche",
+                "category": "Molkerei",
+                "location": "Kühlschrank",
+                "date_type": "best_before",
+                "expires_on": utc_now().date().isoformat(),
+                "requires_date_review": False,
+            }
+        ]
+
+
+def test_worker_processes_pending_jobs_across_queues_once() -> None:
+    settings, _ = create_test_settings("worker-mixed-queues.sqlite3")
+    extractor = FakePackagePhotoExtractor()
+    today = utc_now().date()
+
+    with TestClient(create_app(settings, package_photo_extractor=extractor)) as client:
+        token = authenticate(client)
+        photo_response = client.post(
+            "/api/package-photo/drafts",
+            headers={"Authorization": f"Bearer {token}"},
+            files={"photo": ("milch-label.jpg", b"fake-image-bytes", "image/jpeg")},
+        )
+        confirm_response = client.post(
+            "/api/text-capture/confirm",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "drafts": [
+                    {
+                        "name": "Hackfleisch",
+                        "quantity": "500 g",
+                        "category": "Molkerei",
+                        "location": "Kühlschrank",
+                        "date_type": "use_by",
+                        "expires_on": today.isoformat(),
+                    }
+                ]
+            },
+        )
+        settings_response = client.put(
+            "/api/reminder-settings",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"daily_digest_enabled": True, "urgent_push_enabled": True},
+        )
+        processed_jobs = asyncio.run(process_pending_jobs_once(settings, extractor))
+        reminders_response = client.get(
+            "/api/reminders",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert photo_response.status_code == 200
+    assert confirm_response.status_code == 200
+    assert settings_response.status_code == 200
+    assert extractor.calls == 1
+    assert processed_jobs == 4
+    assert reminders_response.status_code == 200
+    assert {delivery["kind"] for delivery in reminders_response.json()["deliveries"]} == {
+        "daily_digest",
+        "urgent_push",
+    }

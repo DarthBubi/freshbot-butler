@@ -3,13 +3,23 @@
 import React, { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  type BatchLifecycleListResponse,
+  type BatchLifecycleSummary,
+  type BatchMergeSuggestion,
+  type BatchLifecycleActionRequest,
   type BatchSummary,
   createFreshbotClient,
   type FreshnessPolicySummary,
   type FreshnessSummary,
+  type KitchenAssistantQueryResponse,
   type HouseholdSessionResponse,
   type PackagePhotoDraft,
   type PackagePhotoDraftResponse,
+  type ReminderPreviewResponse,
+  type ShoppingListItemSummary,
+  type ShoppingListSummary,
+  type ShoppingListsResponse,
+  type ShoppingReplenishmentSuggestionSummary,
   type TextCaptureDraft,
   type TodayResponse
 } from "@freshbot-butler/api-client";
@@ -22,13 +32,129 @@ type HouseholdShellProps = {
   storage?: Storage;
 };
 
-type Status = "idle" | "submitting" | "loading" | "drafting" | "transcribing" | "saving" | "ready" | "error";
+type Status =
+  | "idle"
+  | "submitting"
+  | "loading"
+  | "drafting"
+  | "processing"
+  | "transcribing"
+  | "saving"
+  | "ready"
+  | "error";
 type DraftSource = "text" | "voice" | "package_photo" | null;
 type ReviewDraft = TextCaptureDraft &
   Partial<Pick<PackagePhotoDraft, "requires_date_review" | "date_reviewed">>;
+type BatchLifecycleEvent = NonNullable<BatchLifecycleSummary["events"]>[number];
+type CachedHouseholdState = {
+  today: TodayResponse | null;
+  batchView: BatchLifecycleListResponse | null;
+  shoppingView: ShoppingListsResponse | null;
+  freshnessPolicies: FreshnessPolicySummary[];
+  reminders: ReminderPreviewResponse | null;
+};
+type QueuedMutation =
+  | { kind: "batch-action"; batchId: string; action: BatchLifecycleActionRequest["action"] }
+  | { kind: "create-shopping-list"; name: string }
+  | { kind: "rename-shopping-list"; listId: string; name: string }
+  | { kind: "upsert-shopping-list-item"; listId: string; name: string; quantity: string }
+  | { kind: "remove-shopping-list-item"; listId: string; itemId: string }
+  | { kind: "accept-shopping-suggestion"; suggestionId: string; listId: string }
+  | {
+      kind: "save-freshness-override";
+      category: string;
+      shelf_life_days: number;
+      soon_window_days: number;
+    };
 
 const PACKAGE_PHOTO_POLLING_DELAY_MS = 100;
-const PACKAGE_PHOTO_POLLING_MAX_ATTEMPTS = 20;
+const HOUSEHOLD_REFRESH_INTERVAL_MS = 5000;
+const HOUSEHOLD_CACHE_PREFIX = "freshbot.householdCache:";
+const HOUSEHOLD_QUEUE_PREFIX = "freshbot.householdQueue:";
+
+function cacheKey(token: string) {
+  return `${HOUSEHOLD_CACHE_PREFIX}${token}`;
+}
+
+function queueKey(token: string) {
+  return `${HOUSEHOLD_QUEUE_PREFIX}${token}`;
+}
+
+function readJson<T>(storage: Storage | undefined, key: string): T | null {
+  if (storage === undefined) {
+    return null;
+  }
+
+  const raw = storage.getItem(key);
+  if (raw === null) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+function writeJson(storage: Storage | undefined, key: string, value: unknown) {
+  if (storage === undefined) {
+    return;
+  }
+
+  storage.setItem(key, JSON.stringify(value));
+}
+
+function readCachedHouseholdState(storage: Storage | undefined, token: string): CachedHouseholdState | null {
+  const cached = readJson<Partial<CachedHouseholdState>>(storage, cacheKey(token));
+  if (!cached) {
+    return null;
+  }
+
+  return {
+    today: cached.today ?? null,
+    batchView: cached.batchView ?? null,
+    shoppingView: cached.shoppingView ?? null,
+    freshnessPolicies: cached.freshnessPolicies ?? [],
+    reminders: cached.reminders ?? null
+  };
+}
+
+function writeCachedHouseholdState(
+  storage: Storage | undefined,
+  token: string,
+  state: CachedHouseholdState
+) {
+  writeJson(storage, cacheKey(token), state);
+}
+
+function readQueuedMutations(storage: Storage | undefined, token: string): QueuedMutation[] {
+  return readJson<QueuedMutation[]>(storage, queueKey(token)) ?? [];
+}
+
+function writeQueuedMutations(storage: Storage | undefined, token: string, mutations: QueuedMutation[]) {
+  writeJson(storage, queueKey(token), mutations);
+}
+
+function isNetworkError(error: unknown) {
+  return (
+    error instanceof TypeError ||
+    (error instanceof Error && /fetch|network|offline/i.test(error.message))
+  );
+}
+
+function formatBatchState(state: BatchLifecycleSummary["state"]) {
+  switch (state) {
+    case "opened":
+      return "Geöffnet";
+    case "depleted":
+      return "Verbraucht";
+    case "discarded":
+      return "Entsorgt";
+    default:
+      return "Versiegelt";
+  }
+}
 
 function formatFreshnessLabel(freshness: FreshnessSummary | null | undefined) {
   switch (freshness?.state) {
@@ -90,8 +216,8 @@ function FreshnessList({
     <section className="stack gap-sm" aria-label={title}>
       <h3>{title}</h3>
       <ul className="stack gap-xs">
-        {items.map((batch) => (
-          <li key={`${title}-${batch.name}-${batch.location}-${batch.quantity}`} className="stack gap-xs">
+        {items.map((batch, index) => (
+          <li key={`${title}-${index}-${batch.name}-${batch.location}-${batch.quantity}`} className="stack gap-xs">
             <strong>{batch.name}</strong>
             <span>{formatFreshnessLabel(batch.freshness)}</span>
             <span>{formatFreshnessDetail(batch.freshness, locale)}</span>
@@ -104,17 +230,306 @@ function FreshnessList({
   );
 }
 
+function BatchEventList({
+  events,
+  locale
+}: {
+  events: BatchLifecycleEvent[];
+  locale: string;
+}) {
+  if (events.length === 0) {
+    return <p>Kein Verlauf erfasst.</p>;
+  }
+
+  return (
+    <ol className="stack gap-xs">
+      {events.map((event) => (
+        <li key={`${event.action}-${event.created_at}-${event.member_name}`}>
+          <strong>{formatBatchEvent(event.action)}</strong>
+          <span>{event.member_name}</span>
+          <span>{new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short" }).format(new Date(event.created_at))}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function formatBatchEvent(action: BatchLifecycleEvent["action"]) {
+  switch (action) {
+    case "opened":
+      return "Geöffnet";
+    case "decremented":
+      return "Verringert";
+    case "used_up":
+      return "Verbraucht";
+    case "discarded":
+      return "Entsorgt";
+  }
+}
+
+function BatchManagementList({
+  batches,
+  mergeSuggestions,
+  locale,
+  onAction,
+  labels
+}: {
+  batches: BatchLifecycleSummary[];
+  mergeSuggestions: BatchMergeSuggestion[];
+  locale: string;
+  onAction: (batchId: string, action: "open" | "decrement" | "use_up" | "discard") => Promise<void>;
+  labels: {
+    title: string;
+    empty: string;
+    duplicateSuggestionsTitle: string;
+    historyTitle: string;
+    open: string;
+    decrement: string;
+    useUp: string;
+    discard: string;
+  };
+}) {
+  return (
+    <section className="dashboard-panel stack gap-sm">
+      <h2>{labels.title}</h2>
+      {mergeSuggestions.length > 0 ? (
+        <div className="stack gap-xs" aria-label={labels.duplicateSuggestionsTitle}>
+          <strong>{labels.duplicateSuggestionsTitle}</strong>
+          <ul className="stack gap-xs">
+            {mergeSuggestions.map((suggestion) => (
+              <li key={`${suggestion.name}-${suggestion.location}-${suggestion.category}`}>
+                {suggestion.name} · {suggestion.count} · {suggestion.location}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {batches.length === 0 ? (
+        <p>{labels.empty}</p>
+      ) : (
+        <div className="stack gap-sm">
+          {batches.map((batch) => (
+            <article key={batch.id} className="stack gap-xs" role="group" aria-label={batch.name}>
+              <strong>{batch.name}</strong>
+              <span>{formatBatchState(batch.state)}</span>
+              <span>{batch.quantity}</span>
+              <span>{batch.category}</span>
+              <span>{batch.location}</span>
+              <span>{formatFreshnessLabel(batch.freshness)}</span>
+              <span>{formatFreshnessDetail(batch.freshness, locale)}</span>
+              <div className="stack gap-xs">
+                <button type="button" onClick={() => void onAction(batch.id, "open")}>
+                  {labels.open}
+                </button>
+                <button type="button" onClick={() => void onAction(batch.id, "decrement")}>
+                  {labels.decrement}
+                </button>
+                <button type="button" onClick={() => void onAction(batch.id, "use_up")}>
+                  {labels.useUp}
+                </button>
+                <button type="button" onClick={() => void onAction(batch.id, "discard")}>
+                  {labels.discard}
+                </button>
+              </div>
+              <section className="stack gap-xs" aria-label={labels.historyTitle}>
+                <h3>{labels.historyTitle}</h3>
+                <BatchEventList events={batch.events ?? []} locale={locale} />
+              </section>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ShoppingListCard({
+  list,
+  labels,
+  onRename,
+  onAddItem,
+  onRemoveItem
+}: {
+  list: ShoppingListSummary;
+  labels: {
+    renameShoppingListLabel: string;
+    shoppingItemNameLabel: string;
+    shoppingItemQuantityLabel: string;
+    addShoppingItemLabel: string;
+    removeShoppingItemLabel: string;
+    shoppingListEmpty: string;
+  };
+  onRename: (listId: string, name: string) => Promise<void>;
+  onAddItem: (listId: string, name: string, quantity: string) => Promise<void>;
+  onRemoveItem: (listId: string, itemId: string) => Promise<void>;
+}) {
+  const [nextListName, setNextListName] = useState(list.name);
+  const [nextItemName, setNextItemName] = useState("");
+  const [nextItemQuantity, setNextItemQuantity] = useState("1");
+  const items = list.items ?? [];
+
+  useEffect(() => {
+    setNextListName(list.name);
+  }, [list.name]);
+
+  return (
+    <article className="stack gap-sm" aria-label={list.name}>
+      <strong>{list.name}</strong>
+      <form
+        className="stack gap-xs"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void onRename(list.id, nextListName);
+        }}
+      >
+        <label className="stack gap-xs">
+          <span>{labels.renameShoppingListLabel}</span>
+          <input value={nextListName} onChange={(event) => setNextListName(event.target.value)} />
+        </label>
+        <button type="submit">{labels.renameShoppingListLabel}</button>
+      </form>
+      <form
+        className="stack gap-xs"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void onAddItem(list.id, nextItemName, nextItemQuantity);
+          setNextItemName("");
+          setNextItemQuantity("1");
+        }}
+      >
+        <label className="stack gap-xs">
+          <span>{labels.shoppingItemNameLabel}</span>
+          <input value={nextItemName} onChange={(event) => setNextItemName(event.target.value)} required />
+        </label>
+        <label className="stack gap-xs">
+          <span>{labels.shoppingItemQuantityLabel}</span>
+          <input value={nextItemQuantity} onChange={(event) => setNextItemQuantity(event.target.value)} required />
+        </label>
+        <button type="submit">{labels.addShoppingItemLabel}</button>
+      </form>
+      {items.length === 0 ? (
+        <p>{labels.shoppingListEmpty}</p>
+      ) : (
+        <ul className="stack gap-xs">
+          {items.map((item) => (
+            <li key={item.id} className="stack gap-xs">
+              <strong>{item.name}</strong>
+              <span>{item.quantity}</span>
+              <span>{item.product_key}</span>
+              <button type="button" onClick={() => void onRemoveItem(list.id, item.id)}>
+                {labels.removeShoppingItemLabel}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </article>
+  );
+}
+
+function ShoppingSuggestionsList({
+  suggestions,
+  lists,
+  labels,
+  onAccept
+}: {
+  suggestions: ShoppingReplenishmentSuggestionSummary[];
+  lists: ShoppingListSummary[];
+  labels: {
+    acceptSuggestionLabel: string;
+    chooseShoppingListLabel: string;
+    shoppingSuggestionsEmpty: string;
+  };
+  onAccept: (suggestionId: string, listId: string) => Promise<void>;
+}) {
+  const [targets, setTargets] = useState<Record<string, string>>({});
+  const defaultListId = lists[0]?.id ?? "";
+
+  useEffect(() => {
+    setTargets((current) => {
+      const next: Record<string, string> = {};
+      for (const suggestion of suggestions) {
+        next[suggestion.id] = current[suggestion.id] ?? defaultListId;
+      }
+      return next;
+    });
+  }, [defaultListId, suggestions]);
+
+  if (suggestions.length === 0) {
+    return <p>{labels.shoppingSuggestionsEmpty}</p>;
+  }
+
+  return (
+    <ul className="stack gap-xs">
+      {suggestions.map((suggestion) => (
+        <li key={suggestion.id} className="stack gap-xs">
+          <strong>{suggestion.name}</strong>
+          <span>{suggestion.quantity}</span>
+          <span>{suggestion.product_key}</span>
+          <span>{suggestion.source_action}</span>
+          <label className="stack gap-xs">
+            <span>{labels.chooseShoppingListLabel}</span>
+            <select
+              value={targets[suggestion.id] ?? defaultListId}
+              onChange={(event) =>
+                setTargets((current) => ({ ...current, [suggestion.id]: event.target.value }))
+              }
+            >
+              {lists.map((list) => (
+                <option key={list.id} value={list.id}>
+                  {list.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            disabled={lists.length === 0}
+            onClick={() => void onAccept(suggestion.id, targets[suggestion.id] ?? defaultListId)}
+          >
+            {labels.acceptSuggestionLabel}
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function HouseholdShell({ apiBaseUrl, storage }: HouseholdShellProps) {
   const client = useMemo(() => createFreshbotClient(apiBaseUrl), [apiBaseUrl]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
+  const packagePhotoPollingRunRef = useRef(0);
+  const browserStorage =
+    storage ?? (typeof window === "undefined" ? undefined : window.localStorage);
+  const initialSession = readJson<HouseholdSessionResponse>(browserStorage, SESSION_STORAGE_KEY);
+  const initialCachedState =
+    initialSession === null ? null : readCachedHouseholdState(browserStorage, initialSession.token);
+  const [session, setSession] = useState<HouseholdSessionResponse | null>(initialSession);
+  const [today, setToday] = useState<TodayResponse | null>(initialCachedState?.today ?? null);
+  const [batchView, setBatchView] = useState<BatchLifecycleListResponse | null>(
+    initialCachedState?.batchView ?? null
+  );
+  const [shoppingView, setShoppingView] = useState<ShoppingListsResponse | null>(
+    initialCachedState?.shoppingView ?? null
+  );
+  const [freshnessPolicies, setFreshnessPolicies] = useState<FreshnessPolicySummary[]>(
+    initialCachedState?.freshnessPolicies ?? []
+  );
+  const [reminders, setReminders] = useState<ReminderPreviewResponse | null>(
+    initialCachedState?.reminders ?? null
+  );
+  const [pendingMutations, setPendingMutations] = useState<QueuedMutation[]>(
+    initialSession === null ? [] : readQueuedMutations(browserStorage, initialSession.token)
+  );
+  const [syncNotice, setSyncNotice] = useState<string | null>(
+    initialCachedState === null ? null : "Zwischengespeicherte Daten werden angezeigt."
+  );
   const [householdName, setHouseholdName] = useState("");
   const [memberName, setMemberName] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [isRecording, setIsRecording] = useState(false);
-  const [today, setToday] = useState<TodayResponse | null>(null);
-  const [session, setSession] = useState<HouseholdSessionResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [captureInput, setCaptureInput] = useState("");
   const [audioFile, setAudioFile] = useState<File | null>(null);
@@ -125,19 +540,28 @@ export function HouseholdShell({ apiBaseUrl, storage }: HouseholdShellProps) {
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [availableLocations, setAvailableLocations] = useState<string[]>([]);
   const [availableDateTypes, setAvailableDateTypes] = useState<string[]>([]);
-  const [freshnessPolicies, setFreshnessPolicies] = useState<FreshnessPolicySummary[]>([]);
   const [savingFreshnessCategory, setSavingFreshnessCategory] = useState<string | null>(null);
-  const browserStorage =
-    storage ?? (typeof window === "undefined" ? undefined : window.localStorage);
+  const [assistantQuestion, setAssistantQuestion] = useState("");
+  const [assistantResponse, setAssistantResponse] = useState<KitchenAssistantQueryResponse | null>(null);
+  const [assistantLoading, setAssistantLoading] = useState(false);
+  const [newShoppingListName, setNewShoppingListName] = useState("");
+  const syncInProgressRef = useRef(false);
+  const syncQueueRef = useRef(Promise.resolve());
   const locale = (today?.locale ?? session?.locale ?? "de-DE") as "de-DE";
   const messages = getMessages(locale);
   const inventory = today?.sections.inventory ?? [];
+  const managedBatches = batchView?.batches ?? [];
+  const mergeSuggestions = batchView?.merge_suggestions ?? [];
+  const shoppingLists = shoppingView?.lists ?? [];
+  const shoppingSuggestions = today?.sections.shopping_suggestions ?? [];
   const canRecordAudio =
     typeof MediaRecorder !== "undefined" &&
     typeof navigator !== "undefined" &&
     typeof navigator.mediaDevices?.getUserMedia === "function";
   const needsAttention = today?.sections.needs_attention ?? [];
   const upcoming = today?.sections.upcoming ?? [];
+  const reminderUrgentItems = reminders?.digest.urgent_items ?? [];
+  const reminderSoonItems = reminders?.digest.soon_items ?? [];
   const hasPendingDateReview =
     draftSource === "package_photo" &&
     drafts.some((draft) => draft.requires_date_review && !draft.date_reviewed);
@@ -153,29 +577,258 @@ export function HouseholdShell({ apiBaseUrl, storage }: HouseholdShellProps) {
 
     const parsedSession = JSON.parse(storedSession) as HouseholdSessionResponse;
     setSession(parsedSession);
-    void loadToday(parsedSession);
+    const cachedState = readCachedHouseholdState(browserStorage, parsedSession.token);
+    if (cachedState !== null) {
+      setToday(cachedState.today);
+      setBatchView(cachedState.batchView);
+      setShoppingView(cachedState.shoppingView);
+      setFreshnessPolicies(cachedState.freshnessPolicies);
+      setReminders(cachedState.reminders);
+      setSyncNotice(messages.cachedHouseholdData);
+    }
+    setPendingMutations(readQueuedMutations(browserStorage, parsedSession.token));
+    void synchronizeHouseholdState(parsedSession, { replayQueuedMutations: true });
   }, [browserStorage]);
 
-  async function loadToday(activeSession: HouseholdSessionResponse) {
-    setStatus("loading");
-    setErrorMessage(null);
+  useEffect(() => {
+    if (session === null || browserStorage === undefined) {
+      return;
+    }
+
+    const onOnline = () => {
+      void synchronizeHouseholdState(session, { replayQueuedMutations: true, silent: true });
+    };
+
+    const intervalId = window.setInterval(onOnline, HOUSEHOLD_REFRESH_INTERVAL_MS);
+    window.addEventListener("online", onOnline);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("online", onOnline);
+    };
+  }, [browserStorage, session]);
+
+  useEffect(() => {
+    if (session === null || browserStorage === undefined) {
+      return;
+    }
+
+    writeCachedHouseholdState(browserStorage, session.token, {
+      today,
+      batchView,
+      shoppingView,
+      freshnessPolicies,
+      reminders
+    });
+  }, [batchView, browserStorage, freshnessPolicies, reminders, session, shoppingView, today]);
+
+  async function loadToday(activeSession: HouseholdSessionResponse, options: { silent?: boolean } = {}) {
+    if (!options.silent) {
+      setStatus("loading");
+      setErrorMessage(null);
+    }
     try {
       const nextToday = await client.getTodayDashboard(activeSession.token);
       try {
         const nextPolicies = await client.listFreshnessOverrides(activeSession.token);
         setFreshnessPolicies(nextPolicies.policies);
       } catch {
-        setFreshnessPolicies([]);
+        setFreshnessPolicies(freshnessPolicies);
       }
       setToday(nextToday);
-      setStatus("ready");
+      if (!options.silent) {
+        setStatus("ready");
+        if (readQueuedMutations(browserStorage, activeSession.token).length === 0) {
+          setSyncNotice(null);
+        }
+      }
     } catch {
-      browserStorage?.removeItem(SESSION_STORAGE_KEY);
-      setSession(null);
-      setToday(null);
-      setFreshnessPolicies([]);
+      if (
+        !options.silent &&
+        readCachedHouseholdState(browserStorage, activeSession.token) === null &&
+        today === null &&
+        batchView === null &&
+        shoppingView === null
+      ) {
+        setStatus("error");
+        setErrorMessage(messages.error);
+      }
+    }
+  }
+
+  async function loadReminders(activeSession: HouseholdSessionResponse, options: { silent?: boolean } = {}) {
+    if (!options.silent) {
+      setErrorMessage(null);
+    }
+    try {
+      const nextReminders = await client.getReminders(activeSession.token);
+      setReminders(nextReminders);
+    } catch {
+      if (!options.silent && reminders !== null) {
+        return;
+      }
+    }
+  }
+
+  async function loadBatches(activeSession: HouseholdSessionResponse, options: { silent?: boolean } = {}) {
+    if (!options.silent) {
+      setErrorMessage(null);
+    }
+    try {
+      const nextBatches = await client.listBatches(activeSession.token);
+      setBatchView(nextBatches);
+    } catch {
+      if (!options.silent && readCachedHouseholdState(browserStorage, activeSession.token) === null && batchView === null) {
+        setErrorMessage(messages.error);
+      }
+    }
+  }
+
+  async function loadShoppingLists(
+    activeSession: HouseholdSessionResponse,
+    options: { silent?: boolean } = {}
+  ) {
+    if (!options.silent) {
+      setErrorMessage(null);
+    }
+    try {
+      const nextShoppingView = await client.listShoppingLists(activeSession.token);
+      setShoppingView(nextShoppingView);
+    } catch {
+      if (
+        !options.silent &&
+        readCachedHouseholdState(browserStorage, activeSession.token) === null &&
+        shoppingView === null
+      ) {
+        setErrorMessage(messages.error);
+      }
+    }
+  }
+
+  function synchronizeHouseholdState(
+    activeSession: HouseholdSessionResponse,
+    options: { replayQueuedMutations?: boolean; silent?: boolean } = {}
+  ) {
+    const run = async () => {
+      if (options.replayQueuedMutations) {
+        await replayQueuedMutations(activeSession);
+      }
+
+      await loadToday(activeSession, { silent: options.silent });
+      await loadReminders(activeSession, { silent: options.silent });
+      await loadBatches(activeSession, { silent: options.silent });
+      await loadShoppingLists(activeSession, { silent: options.silent });
+    };
+
+    const nextSync = syncQueueRef.current.then(run, run);
+    syncQueueRef.current = nextSync.catch(() => undefined);
+    return nextSync;
+  }
+
+  async function handleKitchenAssistantSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (session === null) {
+      return;
+    }
+
+    setAssistantLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const response = await client.queryKitchenAssistant(session.token, { question: assistantQuestion });
+      setAssistantResponse(response);
+    } catch {
       setStatus("error");
-      setErrorMessage(messages.error);
+      setErrorMessage(messages.captureError);
+    } finally {
+      setAssistantLoading(false);
+    }
+  }
+
+  function queueMutation(activeSession: HouseholdSessionResponse, mutation: QueuedMutation) {
+    if (browserStorage === undefined) {
+      return;
+    }
+
+    const nextQueue = [...readQueuedMutations(browserStorage, activeSession.token), mutation];
+    writeQueuedMutations(browserStorage, activeSession.token, nextQueue);
+    setPendingMutations(nextQueue);
+    setSyncNotice(messages.offlineChangesQueued);
+  }
+
+  async function replayQueuedMutations(activeSession: HouseholdSessionResponse) {
+    if (browserStorage === undefined || syncInProgressRef.current) {
+      return;
+    }
+
+    const queued = readQueuedMutations(browserStorage, activeSession.token);
+    if (queued.length === 0) {
+      setPendingMutations([]);
+      return;
+    }
+
+    syncInProgressRef.current = true;
+    try {
+      const nextQueued = [...queued];
+      let index = 0;
+      let reportedPermanentError = false;
+
+      while (index < nextQueued.length) {
+        const mutation = nextQueued[index];
+        try {
+          if (mutation.kind === "batch-action") {
+            await client.actOnBatch(activeSession.token, mutation.batchId, { action: mutation.action });
+          }
+          if (mutation.kind === "create-shopping-list") {
+            await client.createShoppingList(activeSession.token, { name: mutation.name });
+          }
+          if (mutation.kind === "rename-shopping-list") {
+            await client.renameShoppingList(activeSession.token, mutation.listId, { name: mutation.name });
+          }
+          if (mutation.kind === "upsert-shopping-list-item") {
+            await client.upsertShoppingListItem(activeSession.token, mutation.listId, {
+              name: mutation.name,
+              quantity: mutation.quantity
+            });
+          }
+          if (mutation.kind === "remove-shopping-list-item") {
+            await client.removeShoppingListItem(activeSession.token, mutation.listId, mutation.itemId);
+          }
+          if (mutation.kind === "accept-shopping-suggestion") {
+            await client.acceptShoppingSuggestion(activeSession.token, mutation.suggestionId, {
+              list_id: mutation.listId
+            });
+          }
+          if (mutation.kind === "save-freshness-override") {
+            await client.saveFreshnessOverride(activeSession.token, mutation.category, {
+              shelf_life_days: mutation.shelf_life_days,
+              soon_window_days: mutation.soon_window_days
+            });
+          }
+          index += 1;
+        } catch (error) {
+          if (isNetworkError(error)) {
+            const remaining = nextQueued.slice(index);
+            writeQueuedMutations(browserStorage, activeSession.token, remaining);
+            setPendingMutations(remaining);
+            return;
+          }
+
+          nextQueued.splice(index, 1);
+          writeQueuedMutations(browserStorage, activeSession.token, nextQueued);
+          setPendingMutations(nextQueued);
+          if (!reportedPermanentError) {
+            setErrorMessage(messages.captureError);
+            reportedPermanentError = true;
+          }
+        }
+      }
+
+      writeQueuedMutations(browserStorage, activeSession.token, []);
+      setPendingMutations([]);
+      setSyncNotice(null);
+    } finally {
+      syncInProgressRef.current = false;
     }
   }
 
@@ -189,7 +842,7 @@ export function HouseholdShell({ apiBaseUrl, storage }: HouseholdShellProps) {
     });
     browserStorage?.setItem(SESSION_STORAGE_KEY, JSON.stringify(nextSession));
     setSession(nextSession);
-    await loadToday(nextSession);
+    await synchronizeHouseholdState(nextSession);
   }
 
   async function handleDraftSubmit(event: FormEvent<HTMLFormElement>) {
@@ -206,6 +859,7 @@ export function HouseholdShell({ apiBaseUrl, storage }: HouseholdShellProps) {
         input_text: captureInput
       });
       setDraftSource("text");
+      packagePhotoPollingRunRef.current += 1;
       setPackagePhotoCaptureId(null);
       setDrafts(response.drafts);
       setAvailableCategories(response.available_categories);
@@ -233,8 +887,13 @@ export function HouseholdShell({ apiBaseUrl, storage }: HouseholdShellProps) {
       setPackagePhotoCaptureId(response.capture_id);
       applyPackagePhotoDraftResponse(response);
       if (response.status === "processing") {
-        response = await waitForPackagePhotoDrafts(session.token, response.capture_id);
-        applyPackagePhotoDraftResponse(response);
+        const pollingRun = ++packagePhotoPollingRunRef.current;
+        setStatus("processing");
+        void pollForPackagePhotoDrafts(session.token, response.capture_id, pollingRun);
+        return;
+      }
+      if (response.status === "failed") {
+        throw new Error("package photo extraction failed");
       }
       setStatus("ready");
     } catch {
@@ -250,21 +909,35 @@ export function HouseholdShell({ apiBaseUrl, storage }: HouseholdShellProps) {
     setAvailableDateTypes(response.available_date_types);
   }
 
-  async function waitForPackagePhotoDrafts(
-    token: string,
-    captureId: string
-  ): Promise<PackagePhotoDraftResponse> {
-    let response = await client.getPackagePhotoDrafts(token, captureId);
-    let attempts = 1;
-    while (response.status === "processing") {
-      if (attempts >= PACKAGE_PHOTO_POLLING_MAX_ATTEMPTS) {
-        throw new Error("package photo extraction timed out");
-      }
+  async function pollForPackagePhotoDrafts(token: string, captureId: string, pollingRun: number) {
+    while (packagePhotoPollingRunRef.current === pollingRun) {
       await new Promise((resolve) => setTimeout(resolve, PACKAGE_PHOTO_POLLING_DELAY_MS));
-      response = await client.getPackagePhotoDrafts(token, captureId);
-      attempts += 1;
+      if (packagePhotoPollingRunRef.current !== pollingRun) {
+        return;
+      }
+
+      let response: PackagePhotoDraftResponse;
+      try {
+        response = await client.getPackagePhotoDrafts(token, captureId);
+      } catch {
+        continue;
+      }
+
+      if (packagePhotoPollingRunRef.current !== pollingRun) {
+        return;
+      }
+
+      applyPackagePhotoDraftResponse(response);
+      if (response.status === "pending_review") {
+        setStatus("ready");
+        return;
+      }
+      if (response.status === "failed") {
+        setStatus("error");
+        setErrorMessage(messages.captureError);
+        return;
+      }
     }
-    return response;
   }
 
   async function handleVoiceDraftSubmit(event: FormEvent<HTMLFormElement>) {
@@ -288,6 +961,7 @@ export function HouseholdShell({ apiBaseUrl, storage }: HouseholdShellProps) {
       const response = await client.createVoiceCaptureDrafts(session.token, nextAudioFile);
       setCaptureInput(response.transcript);
       setDraftSource("voice");
+      packagePhotoPollingRunRef.current += 1;
       setPackagePhotoCaptureId(null);
       setDrafts(response.drafts);
       setAvailableCategories(response.available_categories);
@@ -366,7 +1040,7 @@ export function HouseholdShell({ apiBaseUrl, storage }: HouseholdShellProps) {
       setDraftSource(null);
       setAvailableDateTypes([]);
       setIsRecording(false);
-      await loadToday(session);
+      await synchronizeHouseholdState(session);
     } catch {
       setStatus("error");
       setErrorMessage(messages.captureError);
@@ -433,8 +1107,19 @@ export function HouseholdShell({ apiBaseUrl, storage }: HouseholdShellProps) {
           currentPolicy.category === category ? savedPolicy : currentPolicy
         )
       );
-      await loadToday(session);
-    } catch {
+      await synchronizeHouseholdState(session);
+    } catch (error) {
+      if (isNetworkError(error)) {
+        queueMutation(session, {
+          kind: "save-freshness-override",
+          category,
+          shelf_life_days: policy.shelf_life_days,
+          soon_window_days: policy.soon_window_days
+        });
+        setStatus("ready");
+        setErrorMessage(null);
+        return;
+      }
       setStatus("error");
       setErrorMessage(messages.freshnessRuleError);
     } finally {
@@ -442,7 +1127,165 @@ export function HouseholdShell({ apiBaseUrl, storage }: HouseholdShellProps) {
     }
   }
 
+  async function handleBatchAction(batchId: string, action: "open" | "decrement" | "use_up" | "discard") {
+    if (session === null) {
+      return;
+    }
+
+    setStatus("saving");
+    setErrorMessage(null);
+
+    try {
+      await client.actOnBatch(session.token, batchId, {
+        action: action as BatchLifecycleActionRequest["action"]
+      });
+      await synchronizeHouseholdState(session);
+      setStatus("ready");
+    } catch (error) {
+      if (isNetworkError(error)) {
+        queueMutation(session, {
+          kind: "batch-action",
+          batchId,
+          action: action as BatchLifecycleActionRequest["action"]
+        });
+        setStatus("ready");
+        setErrorMessage(null);
+        return;
+      }
+      setStatus("error");
+      setErrorMessage(messages.captureError);
+    }
+  }
+
+  async function handleCreateShoppingList(name: string) {
+    if (session === null) {
+      return;
+    }
+
+    setStatus("saving");
+    setErrorMessage(null);
+    try {
+      await client.createShoppingList(session.token, { name });
+      await synchronizeHouseholdState(session);
+      setStatus("ready");
+    } catch (error) {
+      if (isNetworkError(error)) {
+        queueMutation(session, { kind: "create-shopping-list", name });
+        setStatus("ready");
+        setErrorMessage(null);
+        return;
+      }
+      setStatus("error");
+      setErrorMessage(messages.captureError);
+    }
+  }
+
+  async function handleRenameShoppingList(listId: string, name: string) {
+    if (session === null) {
+      return;
+    }
+
+    setStatus("saving");
+    setErrorMessage(null);
+    try {
+      await client.renameShoppingList(session.token, listId, { name });
+      await synchronizeHouseholdState(session);
+      setStatus("ready");
+    } catch (error) {
+      if (isNetworkError(error)) {
+        queueMutation(session, { kind: "rename-shopping-list", listId, name });
+        setStatus("ready");
+        setErrorMessage(null);
+        return;
+      }
+      setStatus("error");
+      setErrorMessage(messages.captureError);
+    }
+  }
+
+  async function handleAddShoppingListItem(listId: string, name: string, quantity: string) {
+    if (session === null) {
+      return;
+    }
+
+    setStatus("saving");
+    setErrorMessage(null);
+    try {
+      await client.upsertShoppingListItem(session.token, listId, { name, quantity });
+      await synchronizeHouseholdState(session);
+      setStatus("ready");
+    } catch (error) {
+      if (isNetworkError(error)) {
+        queueMutation(session, {
+          kind: "upsert-shopping-list-item",
+          listId,
+          name,
+          quantity
+        });
+        setStatus("ready");
+        setErrorMessage(null);
+        return;
+      }
+      setStatus("error");
+      setErrorMessage(messages.captureError);
+    }
+  }
+
+  async function handleRemoveShoppingListItem(listId: string, itemId: string) {
+    if (session === null) {
+      return;
+    }
+
+    setStatus("saving");
+    setErrorMessage(null);
+    try {
+      await client.removeShoppingListItem(session.token, listId, itemId);
+      await synchronizeHouseholdState(session);
+      setStatus("ready");
+    } catch (error) {
+      if (isNetworkError(error)) {
+        queueMutation(session, { kind: "remove-shopping-list-item", listId, itemId });
+        setStatus("ready");
+        setErrorMessage(null);
+        return;
+      }
+      setStatus("error");
+      setErrorMessage(messages.captureError);
+    }
+  }
+
+  async function handleAcceptShoppingSuggestion(suggestionId: string, listId: string) {
+    if (session === null) {
+      return;
+    }
+
+    setStatus("saving");
+    setErrorMessage(null);
+    try {
+      await client.acceptShoppingSuggestion(session.token, suggestionId, { list_id: listId });
+      await synchronizeHouseholdState(session);
+      setStatus("ready");
+    } catch (error) {
+      if (isNetworkError(error)) {
+        queueMutation(session, {
+          kind: "accept-shopping-suggestion",
+          suggestionId,
+          listId
+        });
+        setStatus("ready");
+        setErrorMessage(null);
+        return;
+      }
+      setStatus("error");
+      setErrorMessage(messages.captureError);
+    }
+  }
+
   function resetSession() {
+    if (browserStorage !== undefined && session !== null) {
+      browserStorage.removeItem(cacheKey(session.token));
+      browserStorage.removeItem(queueKey(session.token));
+    }
     browserStorage?.removeItem(SESSION_STORAGE_KEY);
     setSession(null);
     setToday(null);
@@ -458,6 +1301,14 @@ export function HouseholdShell({ apiBaseUrl, storage }: HouseholdShellProps) {
     setAvailableDateTypes([]);
     setFreshnessPolicies([]);
     setSavingFreshnessCategory(null);
+    setAssistantQuestion("");
+    setAssistantResponse(null);
+    setAssistantLoading(false);
+    setBatchView(null);
+    setShoppingView(null);
+    setPendingMutations([]);
+    setSyncNotice(null);
+    setNewShoppingListName("");
     setStatus("idle");
     setErrorMessage(null);
   }
@@ -471,12 +1322,86 @@ export function HouseholdShell({ apiBaseUrl, storage }: HouseholdShellProps) {
           <p className="muted">{messages.subtitle}</p>
         </header>
 
+        {syncNotice ? (
+          <p role="status" className="muted">
+            {syncNotice}
+          </p>
+        ) : null}
+
         {today ? (
           <div className="stack gap-md">
             <div className="stack gap-xs">
               <p className="welcome">{messages.welcome(today.member_name)}</p>
               <p className="muted">{today.household_name}</p>
             </div>
+            {reminders ? (
+              <section className="dashboard-panel stack gap-sm" aria-label={messages.remindersTitle}>
+                <h2>{messages.remindersTitle}</h2>
+                <p className="muted">{messages.remindersNote}</p>
+                <p>
+                  <strong>{messages.reminderDigestLabel}:</strong> {reminders.digest.summary}
+                </p>
+                <p>
+                  <strong>{messages.reminderDigestDeliveryLabel}:</strong>{" "}
+                  {reminders.settings.daily_digest_enabled ? "In der App" : "Aus"}
+                </p>
+                <p>
+                  <strong>{messages.urgentPushDeliveryLabel}:</strong>{" "}
+                  {reminders.delivery.urgent_push_delivery === "web_push" ? "Web Push" : "Aus"}
+                </p>
+                {reminderUrgentItems.length > 0 ? (
+                  <div className="stack gap-xs">
+                    <h3>{messages.urgentTitle}</h3>
+                    <ul className="stack gap-xs">
+                      {reminderUrgentItems.map((item) => (
+                        <li key={`urgent-${item.name}-${item.location}`}>
+                          <strong>{item.name}</strong>
+                          <span>{item.quantity}</span>
+                          <span>{item.location}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {reminderSoonItems.length > 0 ? (
+                  <div className="stack gap-xs">
+                    <h3>{messages.soonTitle}</h3>
+                    <ul className="stack gap-xs">
+                      {reminderSoonItems.map((item) => (
+                        <li key={`soon-${item.name}-${item.location}`}>
+                          <strong>{item.name}</strong>
+                          <span>{item.quantity}</span>
+                          <span>{item.location}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
+            <section className="dashboard-panel stack gap-sm">
+              <h2>{messages.kitchenAssistantTitle}</h2>
+              <p className="muted">{messages.kitchenAssistantNote}</p>
+              <form className="stack gap-sm" onSubmit={(event) => void handleKitchenAssistantSubmit(event)}>
+                <label className="stack gap-xs">
+                  <span>{messages.kitchenAssistantQuestionLabel}</span>
+                  <textarea
+                    value={assistantQuestion}
+                    onChange={(event) => setAssistantQuestion(event.target.value)}
+                    required
+                  />
+                </label>
+                <button type="submit" disabled={assistantLoading || assistantQuestion.trim().length === 0}>
+                  {assistantLoading ? messages.askingKitchenAssistantLabel : messages.askKitchenAssistantLabel}
+                </button>
+              </form>
+              {assistantResponse ? (
+                <div className="stack gap-xs" role="status" aria-label={messages.kitchenAssistantTitle}>
+                  <p>{assistantResponse.answer}</p>
+                  {assistantResponse.needs_clarification ? <p>{messages.kitchenAssistantClarifyLabel}</p> : null}
+                </div>
+              ) : null}
+            </section>
             <section className="dashboard-panel stack gap-md">
               <h2>{today.household_name}</h2>
               {needsAttention.length === 0 && upcoming.length === 0 ? (
@@ -494,8 +1419,8 @@ export function HouseholdShell({ apiBaseUrl, storage }: HouseholdShellProps) {
                 <p>{messages.emptyInventory}</p>
               ) : (
                 <ul className="stack gap-xs">
-                  {inventory.map((batch) => (
-                    <li key={`${batch.name}-${batch.location}-${batch.quantity}`} className="stack gap-xs">
+                  {inventory.map((batch, index) => (
+                    <li key={`${index}-${batch.name}-${batch.location}-${batch.quantity}`} className="stack gap-xs">
                       <strong>{batch.name}</strong>
                       <span>{formatFreshnessLabel(batch.freshness)}</span>
                       <span>{formatFreshnessDetail(batch.freshness, locale)}</span>
@@ -507,6 +1432,79 @@ export function HouseholdShell({ apiBaseUrl, storage }: HouseholdShellProps) {
                 </ul>
               )}
             </section>
+            <section className="dashboard-panel stack gap-md">
+              <h2>{messages.shoppingListsTitle}</h2>
+              <form
+                className="stack gap-xs"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void handleCreateShoppingList(newShoppingListName);
+                  setNewShoppingListName("");
+                }}
+              >
+                <label className="stack gap-xs">
+                  <span>{messages.shoppingListNameLabel}</span>
+                  <input
+                    value={newShoppingListName}
+                    onChange={(event) => setNewShoppingListName(event.target.value)}
+                    required
+                  />
+                </label>
+                <button type="submit">{messages.createShoppingListLabel}</button>
+              </form>
+              <div className="stack gap-sm">
+                {shoppingLists.length === 0 ? (
+                  <p>{messages.shoppingListEmpty}</p>
+                ) : (
+                  shoppingLists.map((list) => (
+                    <ShoppingListCard
+                      key={list.id}
+                      list={list}
+        labels={{
+          renameShoppingListLabel: messages.renameShoppingListLabel,
+          shoppingItemNameLabel: messages.shoppingItemNameLabel,
+          shoppingItemQuantityLabel: messages.shoppingItemQuantityLabel,
+          addShoppingItemLabel: messages.addShoppingItemLabel,
+          removeShoppingItemLabel: messages.removeShoppingItemLabel,
+          shoppingListEmpty: messages.shoppingListEmpty
+        }}
+                      onRename={handleRenameShoppingList}
+                      onAddItem={handleAddShoppingListItem}
+                      onRemoveItem={handleRemoveShoppingListItem}
+                    />
+                  ))
+                )}
+              </div>
+              <section className="stack gap-sm" aria-label={messages.shoppingSuggestionsTitle}>
+                <h3>{messages.shoppingSuggestionsTitle}</h3>
+                <ShoppingSuggestionsList
+                  suggestions={shoppingSuggestions}
+                  lists={shoppingLists}
+                  labels={{
+                    acceptSuggestionLabel: messages.acceptSuggestionLabel,
+                    chooseShoppingListLabel: messages.chooseShoppingListLabel,
+                    shoppingSuggestionsEmpty: messages.shoppingSuggestionsEmpty
+                  }}
+                  onAccept={handleAcceptShoppingSuggestion}
+                />
+              </section>
+            </section>
+            <BatchManagementList
+              batches={managedBatches}
+              mergeSuggestions={mergeSuggestions}
+              locale={locale}
+              onAction={handleBatchAction}
+              labels={{
+                title: messages.batchManagementTitle,
+                empty: messages.emptyBatchManagement,
+                duplicateSuggestionsTitle: messages.duplicateBatchSuggestionsTitle,
+                historyTitle: messages.batchHistoryTitle,
+                open: messages.openBatchLabel,
+                decrement: messages.decrementBatchLabel,
+                useUp: messages.useUpBatchLabel,
+                discard: messages.discardBatchLabel
+              }}
+            />
             <section className="dashboard-panel stack gap-md">
               <h2>{messages.reviewTitle}</h2>
               <form className="stack gap-sm" onSubmit={(event) => void handleDraftSubmit(event)}>
@@ -562,12 +1560,13 @@ export function HouseholdShell({ apiBaseUrl, storage }: HouseholdShellProps) {
                   disabled={
                     packagePhotoFile === null ||
                     status === "drafting" ||
+                    status === "processing" ||
                     status === "transcribing" ||
                     status === "saving" ||
                     status === "loading"
                   }
                 >
-                  {status === "drafting" && packagePhotoFile !== null
+                  {(status === "drafting" || status === "processing") && packagePhotoFile !== null
                     ? messages.drafting
                     : messages.createPackagePhotoDraftsLabel}
                 </button>
@@ -627,18 +1626,18 @@ export function HouseholdShell({ apiBaseUrl, storage }: HouseholdShellProps) {
                       </label>
                       <label className="stack gap-xs" htmlFor={`draft-${index}-location`}>
                         <span>{messages.batchLocationLabel}</span>
-                        <select
+                        <input
                           id={`draft-${index}-location`}
                           aria-label={messages.batchLocationLabel}
                           value={draft.location}
                           onChange={(event) => updateDraft(index, "location", event.target.value)}
-                        >
+                          list={`draft-${index}-locations`}
+                        />
+                        <datalist id={`draft-${index}-locations`}>
                           {availableLocations.map((location) => (
-                            <option key={location} value={location}>
-                              {location}
-                            </option>
+                            <option key={location} value={location} />
                           ))}
-                        </select>
+                        </datalist>
                       </label>
                       {draftSource === "package_photo" ? (
                         <>

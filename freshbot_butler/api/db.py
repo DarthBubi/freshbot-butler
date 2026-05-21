@@ -34,7 +34,26 @@ class Database:
 
         if "batches" in table_names:
             batch_columns = {column["name"] for column in inspector.get_columns("batches")}
+            if "quantity_amount" not in batch_columns:
+                connection.exec_driver_sql("ALTER TABLE batches ADD COLUMN quantity_amount INTEGER")
+            if "quantity_unit" not in batch_columns:
+                connection.exec_driver_sql("ALTER TABLE batches ADD COLUMN quantity_unit VARCHAR(64)")
+            if "lifecycle_state" not in batch_columns:
+                connection.exec_driver_sql("ALTER TABLE batches ADD COLUMN lifecycle_state VARCHAR(32) DEFAULT 'sealed'")
+            if "opened_at" not in batch_columns:
+                connection.exec_driver_sql("ALTER TABLE batches ADD COLUMN opened_at DATETIME")
             if "date_type" not in batch_columns:
                 connection.exec_driver_sql("ALTER TABLE batches ADD COLUMN date_type VARCHAR(32)")
             if "expires_on" not in batch_columns:
                 connection.exec_driver_sql("ALTER TABLE batches ADD COLUMN expires_on DATE")
+
+        if "households" in table_names:
+            household_columns = {column["name"] for column in inspector.get_columns("households")}
+            if "daily_digest_enabled" not in household_columns:
+                connection.exec_driver_sql(
+                    "ALTER TABLE households ADD COLUMN daily_digest_enabled BOOLEAN DEFAULT 1"
+                )
+            if "urgent_push_enabled" not in household_columns:
+                connection.exec_driver_sql(
+                    "ALTER TABLE households ADD COLUMN urgent_push_enabled BOOLEAN DEFAULT 0"
+                )

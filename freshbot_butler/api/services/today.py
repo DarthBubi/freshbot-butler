@@ -9,6 +9,7 @@ from freshbot_butler.api.freshness import assess_batch_freshness
 from freshbot_butler.api.models import Batch, Household, Member, SessionToken, utc_now
 from freshbot_butler.api.schemas import BatchSummary, FreshnessSummary, TodayResponse, TodaySections
 from freshbot_butler.api.services.freshness_overrides import FreshnessOverrideService
+from freshbot_butler.api.services.shopping_lists import ShoppingListService
 
 
 class TodayDashboardService:
@@ -40,10 +41,14 @@ class TodayDashboardService:
                 .order_by(Batch.created_at.asc(), Batch.id.asc())
             )
         ).all()
+        inventory = [batch for batch in inventory if batch.lifecycle_state not in {"depleted", "discarded"}]
         override_map = await FreshnessOverrideService(self._session).load_override_map_for_household(household.id)
         inventory_items = [
             self._to_batch_summary(batch, today=utc_now().date(), overrides=override_map) for batch in inventory
         ]
+        shopping_suggestions = await ShoppingListService(self._session).load_pending_suggestions_for_household(
+            household.id
+        )
 
         return TodayResponse(
             household_name=household.name,
@@ -53,6 +58,7 @@ class TodayDashboardService:
                 inventory=inventory_items,
                 needs_attention=[item for item in inventory_items if item.freshness and item.freshness.state == "urgent"],
                 upcoming=[item for item in inventory_items if item.freshness and item.freshness.state == "soon"],
+                shopping_suggestions=shopping_suggestions,
             ),
         )
 

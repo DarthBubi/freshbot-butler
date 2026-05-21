@@ -32,6 +32,8 @@ npm run test:frontend
 
 Voice capture uses the OpenAI transcription path by default. Set `FRESHBOT_TRANSCRIPTION_OPENAI_API_KEY`
 before running the backend if you want to exercise audio upload/recording locally.
+Package photo extraction is disabled by default; set `FRESHBOT_PACKAGE_PHOTO_EXTRACTOR=openai` and
+`FRESHBOT_PACKAGE_PHOTO_OPENAI_API_KEY` to enable the runtime extractor.
 
 ### Run the slice without Docker
 

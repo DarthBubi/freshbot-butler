@@ -63,7 +63,8 @@ def assess_batch_freshness(
         batch.category,
         DEFAULT_CATEGORY_POLICIES["Sonstiges"],
     )
-    due_on = batch.created_at.date() + timedelta(days=policy.shelf_life_days)
+    freshness_start = batch.opened_at.date() if batch.opened_at is not None else batch.created_at.date()
+    due_on = freshness_start + timedelta(days=policy.shelf_life_days)
     remaining_days = (due_on - today).days
     state: FreshnessState
     if remaining_days <= 0:

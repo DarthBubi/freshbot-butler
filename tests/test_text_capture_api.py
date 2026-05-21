@@ -133,7 +133,7 @@ def test_member_can_turn_text_input_into_reviewable_batch_drafts() -> None:
         response = client.post(
             "/api/text-capture/drafts",
             headers={"Authorization": f"Bearer {token}"},
-            json={"input_text": "2 Milch im Kühlschrank und 1 Packung Pasta im Vorratsschrank"},
+            json={"input_text": "2 Milch im Kühlschrank und 1 Brot im Keller"},
         )
 
     assert response.status_code == 200
@@ -149,10 +149,10 @@ def test_member_can_turn_text_input_into_reviewable_batch_drafts() -> None:
             "location": "Kühlschrank",
         },
         {
-            "name": "Pasta",
-            "quantity": "1 Packung",
-            "category": "Vorrat",
-            "location": "Vorratsschrank",
+            "name": "Brot",
+            "quantity": "1",
+            "category": "Sonstiges",
+            "location": "Keller",
         },
     ]
     assert payload["available_categories"] == [
@@ -196,7 +196,7 @@ def test_member_can_edit_drafts_confirm_them_and_see_saved_batches_on_today_dash
                         "name": "Penne",
                         "quantity": "1 Packung",
                         "category": "Vorrat",
-                        "location": "Vorratsschrank",
+                        "location": "Keller",
                     },
                 ]
             },
@@ -220,13 +220,13 @@ def test_member_can_edit_drafts_confirm_them_and_see_saved_batches_on_today_dash
                 "name": "Penne",
                 "quantity": "1 Packung",
                 "category": "Vorrat",
-                "location": "Vorratsschrank",
+                "location": "Keller",
             },
         ]
     }
     assert fetch_batches(database_path) == [
         ("Haferdrink", "2 Kartons", "Getränke", "Kühlschrank"),
-        ("Penne", "1 Packung", "Vorrat", "Vorratsschrank"),
+        ("Penne", "1 Packung", "Vorrat", "Keller"),
     ]
     assert today_response.status_code == 200
     assert [
@@ -243,7 +243,7 @@ def test_member_can_edit_drafts_confirm_them_and_see_saved_batches_on_today_dash
             "name": "Penne",
             "quantity": "1 Packung",
             "category": "Vorrat",
-            "location": "Vorratsschrank",
+            "location": "Keller",
         },
     ]
 
@@ -307,8 +307,8 @@ def test_confirm_keeps_normalizing_non_blank_category_and_location_values() -> N
                 "name": "Haferdrink",
                 "quantity": "2 Kartons",
                 "category": "Sonstiges",
-                "location": "Vorratsschrank",
+                "location": "Keller",
             }
         ]
     }
-    assert fetch_batches(database_path) == [("Haferdrink", "2 Kartons", "Sonstiges", "Vorratsschrank")]
+    assert fetch_batches(database_path) == [("Haferdrink", "2 Kartons", "Sonstiges", "Keller")]

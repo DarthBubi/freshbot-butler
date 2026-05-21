@@ -54,6 +54,9 @@ class FreshnessOverrideService:
             override.soon_window_days = request.soon_window_days
 
         await self._session.commit()
+        from freshbot_butler.api.services.reminders import ReminderService
+
+        await ReminderService(self._session).enqueue_pending_jobs()
 
         for policy in build_effective_policies(
             {normalized_category: CategoryFreshnessPolicy(request.shelf_life_days, request.soon_window_days)}
